@@ -1,0 +1,19 @@
+* messages
+A UDP Messaging Application (P2P)
+
+** Introduction
+
+'Messages' is a UDP based, Peer-to-peer (P2P) messaging application.
+Communication is unencrypted and in no way is delivery guaranteed. In order for
+a message to be received, a client needs to be listening. Retransmissions may
+cause messages to be repeated.
+
+This application was written to test how message transmission delays (eg. those
+caused by interplanetary distances) affect message based communication.
+
+** Author
+
+Paul Schulz <paul@mawsonlakes.org>
+Copyright 2021
+
+Licence: GNU AFFERO GENERAL PUBLIC LICENSE
