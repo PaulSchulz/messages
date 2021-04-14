@@ -11,6 +11,21 @@ cause messages to be repeated.
 This application was written to test how message transmission delays (eg. those
 caused by interplanetary distances) affect message based communication.
 
+
+** Compilation on Ubuntu (and Debian based systems)
+#+begin_src text
+  sudo apt install build-essential
+  sudo apt install libgtk-3-dev
+  cd ./src
+  make
+#+end_src
+
+** To Run
+#+begin_src text
+  cd ./src
+  ./messages
+#+end_src
+
 ** Author
 
 Paul Schulz <paul@mawsonlakes.org>
