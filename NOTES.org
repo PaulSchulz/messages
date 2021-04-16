@@ -64,7 +64,7 @@ compiled schema at runtime. So, if 'messages' is run when in the build directory
 #+end_src
 
 ** TODO Installation Process
-Work in progress
+Work in progress. The current program can be run directly from it's build directory.
 
 ** Software
 - glib-compile-schemas - Used to compile schemas into a binary Gnome format
@@ -72,6 +72,6 @@ Work in progress
 - gsettings - Manipulate 'gschemas.compiled' file
 
 ** Resources:
-Gnome Documentation: https://developer.gnome.org/GSettings/
-Dconf Editor Wikipage: https://wiki.gnome.org/Apps/DconfEditor
-Gnome Blog Post: https://blog.gtk.org/2017/05/01/first-steps-with-gsettings/
+- Gnome Documentation: https://developer.gnome.org/GSettings/
+- Dconf Editor Wikipage: https://wiki.gnome.org/Apps/DconfEditor
+- Gnome Blog Post: https://blog.gtk.org/2017/05/01/first-steps-with-gsettings/
