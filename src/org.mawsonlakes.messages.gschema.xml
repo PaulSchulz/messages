@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<schemalist>
+
+  <schema path="/org/mawsonlakes/messages/" id="org.mawsonlakes.messages">
+
+    <key name='port' type='i'>
+      <default>4478</default>
+      <summary>Default port for receiving messages</summary>
+      <description>
+        By default the application will listen on all network interfaces for UDP
+        packets arriving on this port.
+      </description>
+    </key>
+
+  </schema>
+
+</schemalist>

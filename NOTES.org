@@ -1,0 +1,77 @@
+* Introduction
+
+This document contains development notes and design documentation. It may
+provide some insight on why a particular path was chosen, or why some particular
+programming was NOT chosen. This is not guaranteed though. The documentation may
+also be out of date so 'reader beware'.
+
+* Testing 
+** Messaging
+Testing that UDP messages are being sent and received can be done with the netcat (nc) program.
+ 
+Receiving messages sent to another Linux host on the network can be done with
+the following (-l listen, -u UDP, -k keep alive and listen for more packets)
+#+begin_src shell
+  nc -luk 4478
+#+end_src
+
+Sending messages from another Linux host on the network to the messages client,
+listening on port 4478 can be done with
+#+begin_src shell
+  echo -n "The potatos are growing well" | nc -uN -q 1 10.1.1.83 4478
+#+end_src
+
+* TODO GSettings
+
+GSettings allows Gnome programs to store configuration software centrally in a
+way similar to the Microsoft System Registry
+
+  Application Id: org.mawsonlakes.messages
+
+The configuration data in stored is initially stored in an XML schema file and
+then compiled into a binary compiled format, which is loading into the Gnome
+system when the application is installed.
+
+Settings:
+- port - Default network port to listen to for inbound messages.
+
+Once compiled the settings can be viewed with a command like:
+#+begin_src 
+  gsettings --schemadir . list-keys org.mawsonlakes.messages
+#+end_src
+
+** TODO Autotools
+
+It is possible for the installation details can be maintained with Autotools.
+Put the following in Makefile.in
+#+begin_src makefile
+  gsettings_SCHEMAS = org.mawsonlakes.messages.gschema.xml
+
+  @GSETTINGS_RULES@
+#+end_src
+The following line is required in configure.ac
+#+begin_src sh
+  GLIB_SETTINGS
+#+end_src
+Re-run autoregen to update configuration files.
+
+** Accessing GConfig during development
+There exists an environment variable which can be used to direct Glib to the
+compiled schema at runtime. So, if 'messages' is run when in the build directory
+(./src), use the following
+#+begin_src 
+  GSETTINGS_SCHEMA_DIR=.
+#+end_src
+
+** TODO Installation Process
+Work in progress
+
+** Software
+- glib-compile-schemas - Used to compile schemas into a binary Gnome format
+- dconf-editor - Graphical tool for editing settings once installed
+- gsettings - Manipulate 'gschemas.compiled' file
+
+** Resources:
+Gnome Documentation: https://developer.gnome.org/GSettings/
+Dconf Editor Wikipage: https://wiki.gnome.org/Apps/DconfEditor
+Gnome Blog Post: https://blog.gtk.org/2017/05/01/first-steps-with-gsettings/

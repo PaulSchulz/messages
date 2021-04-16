@@ -26,6 +26,11 @@ caused by interplanetary distances) affect message based communication.
   ./messages
 #+end_src
 
+** Status
+Not yet feature complete - Work in Progress
+- See: TODO.org
+
+
 ** Author
 
 Paul Schulz <paul@mawsonlakes.org>

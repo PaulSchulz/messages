@@ -31,6 +31,13 @@
 #define BUFSIZE 1024
 #define STRSIZE 32
 
+//
+typedef struct {
+    gchar   name[STRSIZE];
+    gchar   address[STRSIZE];
+    gint    port;
+} targetData;
+
 // Data structure for passing Widget pointers to callbacks
 typedef struct {
     GtkWidget *messagesTextView;
@@ -54,18 +61,30 @@ typedef struct {
     gchar     packetData[BUFSIZE];
 } appWidgets;
 
+targetData target = { .name = "cashew",
+                      .address = "10.1.1.193",
+                      .port = 4478
+};
+
+appWidgets widgetData;
+
 //////////////////////////////////////////////////////////////////////////////
 // Low level UI function
 
 void
 echo_line (appWidgets *widgets, gchar *line)
 {
-    GtkTextBuffer *messages;
+    //GtkTextBuffer *messages;
     GtkTextIter messagesIter;
 
     // DEBUG: printf("%s\n", line);
+    g_printerr("[DEBUG] Get end iter in messagesTextBuffer\n");
     gtk_text_buffer_get_end_iter(GTK_TEXT_BUFFER(widgets->messagesTextBuffer),&messagesIter);
+
+    g_printerr("[DEBUG] Insert text\n");
     gtk_text_buffer_insert (GTK_TEXT_BUFFER(widgets->messagesTextBuffer), &messagesIter, line, -1);
+
+    g_printerr("[DEBUG] Insert newline\n");
     gtk_text_buffer_insert (GTK_TEXT_BUFFER(widgets->messagesTextBuffer), &messagesIter, "\n", -1);
 }
 
@@ -79,7 +98,7 @@ echo_message (appWidgets *widgets,
     gchar text[BUFSIZE];
 
     // TODO: Handle multiple line messages.
-    sprintf(text, "%-8s  %-12s  %-2s  %s", timestamp, target, direction, message);
+    sprintf(text, "%-8s  %-2s  %-12s  %s", timestamp, direction, target, message);
 
     echo_line(widgets,text);
 }
@@ -144,22 +163,22 @@ gchar * skn_gio_condition_to_string(GIOCondition condition)
 
     switch(condition) {
     case G_IO_IN:
-        value = "G_IO_IN: There is data to read.";
+        value = "G_IO_IN (There is data to read.)";
         break;
     case G_IO_OUT:
-        value = "G_IO_OUT: Data can be written (without blocking).";
+        value = "G_IO_OUT (Data can be written (without blocking).)";
         break;
     case G_IO_PRI:
-        value = "G_IO_PRI: There is urgent data to read.";
+        value = "G_IO_PRI (There is urgent data to read.)";
         break;
     case G_IO_ERR:
-        value = "G_IO_ERR: Error condition.";
+        value = "G_IO_ERR (Error condition.)";
         break;
     case G_IO_HUP:
-        value = "G_IO_HUP: Hung up (the connection has been broken, usually for pipes and sockets).";
+        value = "G_IO_HUP (Hung up (the connection has been broken, usually for pipes and sockets).)";
         break;
     case G_IO_NVAL:
-        value = "G_IO_NVAL: Invalid request. The file descriptor is not open.";
+        value = "G_IO_NVAL (Invalid request. The file descriptor is not open.)";
         break;
     default:
         value = "Unknown GIOCondition!";
@@ -168,7 +187,7 @@ gchar * skn_gio_condition_to_string(GIOCondition condition)
     return (value);
  }
 
-// New
+// FIXME - This function was taken from an example and needs to be renamed.
 static gboolean
 cb_udp_request_handler (GSocket *gSock, GIOCondition condition, appWidgets *widgets)
 {
@@ -184,83 +203,56 @@ cb_udp_request_handler (GSocket *gSock, GIOCondition condition, appWidgets *widg
     const gchar *timestamp;
     gchar *target;
 
-    g_print("Received UDP packet from client! - Condition: %s\n", skn_gio_condition_to_string(condition));
+    // FIXME - The following is a workaround as 'widgets' is not passed properly
+    // and I don't know why. Implemented via a global variable 'widgetData'.
+    widgets = &widgetData;
 
-    if ((condition & G_IO_HUP) || (condition & G_IO_ERR) || (condition & G_IO_NVAL)) {  /* SHUTDOWN THE MAIN LOOP */
-        g_message("DisplayService::cb_udp_request_handler(error) G_IO_HUP => %s\n", skn_gio_condition_to_string(condition));
-//g_main_loop_quit(pctrl->loop);
+    // DEBUG
+    g_printerr("[DEBUG] Received UDP packet - Condition: %s\n",
+               skn_gio_condition_to_string(condition));
+
+    if ((condition & G_IO_HUP) || (condition & G_IO_ERR) || (condition & G_IO_NVAL)) {
+        /* SHUTDOWN THE MAIN LOOP */
+        g_printerr("[DEBUG] DisplayService::cb_udp_request_handler(error) G_IO_HUP => %s\n",
+                  skn_gio_condition_to_string(condition));
+        //g_main_loop_quit(pctrl->loop);
         return ( G_SOURCE_REMOVE );
     }
 
     if (condition != G_IO_IN) {
-        g_message("DisplayService::cb_udp_request_handler(error) NOT G_IO_IN => %s\n", skn_gio_condition_to_string(condition));
+        g_printerr("[DEBUG] DisplayService::cb_udp_request_handler(error) NOT G_IO_IN => %s\n",
+                   skn_gio_condition_to_string(condition));
         return (G_SOURCE_CONTINUE);
     }
 
-    /*
-     * If socket times out before reading data any operation will error with 'G_IO_ERROR_TIMED_OUT'.
-     */
+    // If socket times out before reading data any operation will error with 'G_IO_ERROR_TIMED_OUT'.
+    gss_receive = g_socket_receive_from (gSock,
+                                         &gsRmtAddr,
+                                         widgets->packetData,
+                                         sizeof(widgets->packetData),
+                                         NULL,
+                                         &error);
 
-    gss_receive = g_socket_receive_from (gSock, &gsRmtAddr, widgets->packetData, sizeof(widgets->packetData), NULL, &error);
-
-    if (error != NULL) { // gss_receive = Number of bytes read, or 0 if the connection was closed by the peer, or -1 on error
-        g_error("g_socket_receive_from() => %s", error->message);
+    if (error != NULL) {
+        // gss_receive = Number of bytes read, or 0 if the connection was closed by the peer, or -1 on error
+        g_error("[ERROR] g_socket_receive_from() => %s", error->message);
         g_clear_error(&error);
         return (G_SOURCE_CONTINUE);
     }
 
-    g_print("Get's here.\n");
-    /*
-      if (gss_receive > 0 ) {
-      if (G_IS_INET_SOCKET_ADDRESS(gsRmtAddr) ) {
-      gsAddr = g_inet_socket_address_get_address( G_INET_SOCKET_ADDRESS(gsRmtAddr) );
-      if ( G_IS_INET_ADDRESS(gsAddr) ) {
-      g_object_ref(gsAddr);
-      rmtHost = g_resolver_lookup_by_address (pctrl->resolver, gsAddr, NULL, NULL);
-      if (NULL == rmtHost) {
-      rmtHost = g_inet_address_to_string ( gsAddr);
-      }
-      }
-      }
-      pctrl->ch_read[gss_receive] = 0;
-g_snprintf(pctrl->ch_request, sizeof(pctrl->ch_request), "[%s]MSG From=%s, Msg=%s", stamp, rmtHost, pctrl->ch_read);
-g_free(rmtHost);
-        g_snprintf(pctrl->ch_response, sizeof(pctrl->ch_response), "%d %s", 202, "Accepted");
-    } else {
-        g_snprintf(pctrl->ch_request, sizeof(pctrl->ch_request), "%s", "Error: Input not Usable");
-        g_snprintf(pctrl->ch_response, sizeof(pctrl->ch_response), "%d %s", 406, "Not Acceptable");
-    }
+    g_printerr("[DEBUG] Update clock\n");
+    updateClock(widgets);
 
-    g_socket_send_to (gSock, gsRmtAddr, pctrl->ch_response, strlen(pctrl->ch_response), NULL, &error);
-    if (error != NULL) {  // gss_send = Number of bytes written (which may be less than size ), or -1 on error
-        g_error("g_socket_send_to() => %s", error->message);
-        g_clear_error(&error);
-    }
-
-    g_free(stamp);
-    g_print("%s\n", pctrl->ch_request);
-
-    if ( G_IS_INET_ADDRESS(gsAddr) )
-        g_object_unref(gsAddr);
-
-    if (G_IS_INET_SOCKET_ADDRESS(gsRmtAddr) )
-        g_object_unref(gsRmtAddr);
-
-*/
-
-    // updateClock(widgets);
-
-    g_print("Get's here2.\n");
-
-    // timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
-    timestamp = "now()";
+    g_printerr("[DEBUG] Get timestamp\n");
+    timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
+    //timestamp = "now()";
     target = "mars-alpha";
 
-    g_print("Get's here3.\n");
+    g_printerr("[DEBUG] Dispay message.\n");
+    echo_message(&widgetData, timestamp, target, "<-", widgets->packetData);
 
-    echo_message(widgets, timestamp, target, "<-", widgets->packetData);
-
-    g_print("Received UDP packet from client! %ld bytes\n", gss_receive);
+    // DEBUG
+    g_printerr("[DEBUG] Received UDP packet from client! %ld bytes\n", gss_receive);
     return (G_SOURCE_CONTINUE);
 
 }
@@ -278,9 +270,9 @@ incomingUDP_callback (GIOChannel *source,
     gchar message[1024];
     gssize size;
     const gchar *timestamp;
-    gchar *target;
+    // gchar *target;
 
-    g_print("Received UDP packet from client!\n");
+    // g_print("Received UDP packet from client!\n");
 
     // Buffer is not null terminated.
     g_io_channel_read_chars (source,message,1024,&size,NULL);
@@ -294,8 +286,8 @@ incomingUDP_callback (GIOChannel *source,
 
     updateClock(widgets);
     timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
-    target = "mars-alpha";
-    echo_message(widgets, timestamp, target, "<-", message);
+    //target = "mars-alpha";
+    echo_message(widgets, timestamp, target.name, "<-", message);
 
     printf("Get's here2\n");
 
@@ -330,8 +322,10 @@ incoming_callback  (GSocketService *service,
     return FALSE;
 }
 
+// Low level networking code.
+// Open a UDP network socket, send packet, then close socket.
 static int
-send_message (char *target, char *buffer)
+send_message (targetData target, char *buffer)
 {
     char   buf[BUFSIZE];
     char   *hostname;
@@ -345,8 +339,9 @@ send_message (char *target, char *buffer)
     char   myhostname[STRSIZE];
 
     // Networking target
-    hostname = "cashew.lan";
-    portno = atoi("8400");
+    hostname = target.address;
+    portno = target.port;
+    // portno = atoi("8400");
     // sethostname(myhostname,STRSIZE);
 
     // Open Socket for writing
@@ -361,23 +356,28 @@ send_message (char *target, char *buffer)
         exit(0);
     }
 
-    // build the server's Internet address
+    // Build the server's Internet address
     bzero((char *) &serveraddr, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
     bcopy((char *)server->h_addr,
           (char *)&serveraddr.sin_addr.s_addr, server->h_length);
     serveraddr.sin_port = htons(portno);
 
-    // build message
+    // Build message
     sprintf(buf, "%s", buffer);
 
-    /* send the message to the server */
+    /* Send the packet */
     serverlen = sizeof(serveraddr);
     n = sendto(sockfd, buf, strlen(buf), 0,
                (struct sockaddr *) &serveraddr, serverlen);
     if (n < 0)
         fprintf(stderr,"ERROR in sendto");
 
+    // DEBUG
+    g_printerr("[DEBUG] Packet sent: %s %s:%d\n",
+               target.name,
+               target.address,
+               target.port);
     return 0;
 }
 
@@ -389,7 +389,7 @@ clickedSend(GtkButton *button,
             appWidgets *widgets)
 {
     const gchar *timestamp;
-    gchar *target;
+    // gchar *target;
 
     GtkTextIter start_iter,end_iter;
     gchar *text;
@@ -399,14 +399,15 @@ clickedSend(GtkButton *button,
 
     timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
 
-    target = "mars-alpha";
+    //target = "mars-alpha";
 
     gtk_text_buffer_get_start_iter(GTK_TEXT_BUFFER(widgets->messageTextBuffer), &start_iter);
     gtk_text_buffer_get_end_iter(GTK_TEXT_BUFFER(widgets->messageTextBuffer), &end_iter);
     text = gtk_text_buffer_get_text(GTK_TEXT_BUFFER(widgets->messageTextBuffer), &start_iter, &end_iter, TRUE);
 
-    send_message("", text);
-    echo_message(widgets, timestamp, target, "->", text);
+    // FIXME: target is currently a global structure
+    send_message(target, text);
+    echo_message(widgets, timestamp, target.name , "->", text);
     gtk_text_buffer_set_text (GTK_TEXT_BUFFER(widgets->messageTextBuffer), "", -1);
 
     gtk_label_set_text(GTK_LABEL(widgets->statusLabel), "Sent");
@@ -423,7 +424,8 @@ clickedOver(GtkButton *button,
     gtk_label_set_text(GTK_LABEL(widgets->statusLabel), "Over");
     clickedSend(button,widgets);
 
-    send_message("", "[OVER]\n");
+    // FIXME: target is currently a global structure
+    send_message(target, "[OVER]\n");
 }
 
 
@@ -462,37 +464,23 @@ main (int    argc,
     GtkTextIter iter;
     GtkTextIter targetsIter;
 
-    appWidgets *widgets = g_slice_new(appWidgets);
+    //    appWidgets *widgets = g_slice_new(appWidgets);
+    appWidgets *widgets = &widgetData;
 
     gtk_init (0, NULL);
 
     //////
     GError *error = NULL;
 
-    /* create the new socketservice */
-    GSocketService * service = g_socket_service_new ();
-
-    /* connect to the port */
-    g_socket_listener_add_inet_port (G_SOCKET_LISTENER(service),
-                                    8400, /* your port goes here */
-                                    NULL,
-                                    &error);
-
-    g_signal_connect (service, "incoming", G_CALLBACK (incoming_callback), widgets);
-
-/* start the socket service */
-    g_socket_service_start (service);
-    g_print ("Waiting for TCP client!\n");
-
-///// New UDP Code /////
-    guint16 gUDPPort = 8400;
-//GError *error;
+    ///// New UDP Code /////
+    guint16 gUDPPort = 4478;
     GSocket *gSock;
     GInetAddress *anyAddr;
     GSocketAddress *gsAddr;
     GSource *gSource;
     guint gSourceId;
 
+    // Create networking socket
     gSock = g_socket_new(G_SOCKET_FAMILY_IPV4,
                          G_SOCKET_TYPE_DATAGRAM,
                          G_SOCKET_PROTOCOL_UDP,
@@ -506,6 +494,7 @@ main (int    argc,
     anyAddr = g_inet_address_new_any(G_SOCKET_FAMILY_IPV4);
     gsAddr = g_inet_socket_address_new(anyAddr, gUDPPort);
 
+    // Bind address to socket
     g_socket_bind(gSock, gsAddr, TRUE, &error);
     if (error != NULL) {
         g_error("g_socket_bind() => %s", error->message);
@@ -513,26 +502,27 @@ main (int    argc,
         exit(EXIT_FAILURE);
     }
 
-/* Create and Add socket to gmain loop for service (i.e. polling socket)   */
+    // Create and add socket to gmain loop for UDP service.
     gSource = g_socket_create_source (gSock, G_IO_IN, NULL);
     g_source_set_callback (gSource,
                            (GSourceFunc) cb_udp_request_handler,
-                           &widgets, NULL); // its really a GSocketSourceFunc
+                           // its really a GSocketSourceFunc
+                           &widgets,
+                           NULL);
+
     widgets->gSourceId = gSourceId = g_source_attach (gSource, NULL);
 
     //  g_socket_service_start (serviceUDP);
-    g_print ("Waiting for UDP client!\n");
+    g_print ("Waiting for UDP packets on port %d\n", gUDPPort);
 
-  ////
-    send_message ("ping\n","cashew.lan:8400");
+    ////
+    send_message (target, "ping");
 
     builder = gtk_builder_new_from_file ("../glade/messages.glade");
     window = gtk_builder_get_object (builder , "window");
 
     widgets->messagesTextView   = GTK_WIDGET(gtk_builder_get_object(builder, "messagesTextView"));
     widgets->messagesTextBuffer = GTK_TEXT_BUFFER(gtk_builder_get_object(builder, "messagesTextBuffer"));
-    widgets->targetsTextView    = GTK_WIDGET(gtk_builder_get_object(builder, "targetsTextView"));
-    widgets->targetsTextBuffer  = GTK_TEXT_BUFFER(gtk_builder_get_object(builder, "targetsTextBuffer"));
     widgets->messageTextView    = GTK_WIDGET(gtk_builder_get_object(builder, "messageTextView"));
     widgets->messageTextBuffer  = GTK_WIDGET(gtk_builder_get_object(builder, "messageTextBuffer"));
     widgets->timestamp          = GTK_WIDGET(gtk_builder_get_object(builder, "timestamp"));
@@ -544,7 +534,6 @@ main (int    argc,
     widgets->over               = GTK_WIDGET(gtk_builder_get_object(builder, "over"));
 
     messagesTextBuffer = (GtkTextBuffer*)gtk_builder_get_object (builder, "messagesTextBuffer");
-    targetsTextBuffer  = (GtkTextBuffer*)gtk_builder_get_object (builder, "targetsTextBuffer");
     messageTextBuffer  = (GtkTextBuffer*)gtk_builder_get_object (builder, "messageTextBuffer");
 
     // gtk_builder_connect_signals (builder, widgets);
@@ -557,44 +546,19 @@ main (int    argc,
     gtk_text_buffer_set_text (messagesTextBuffer, "", -1);
 
     // Splash
-    echo_line(widgets, "Welcome to Messages!");
-    echo_line(widgets, "--------------------");
-    echo_line(widgets, "This program is designed to send and receive messages in");
-    echo_line(widgets, "plain UDP packets.");
-    echo_line(widgets, "Select a target, and send a message.");
+    echo_line(widgets, "Welcome to Messages - an Interplanetary Messaging App!");
+    echo_line(widgets, "------------------------------------------------------");
+    echo_line(widgets, "This program is designed to send and receive messages with");
+    echo_line(widgets, "plain UDP packets. Send a message from textbox at the bottom..");
+    echo_line(widgets, "");
+    char buf[80];
+    sprintf(buf, "Listening for messages on all network interfaces on UDP port %d.", gUDPPort);
+    echo_line(widgets, buf);
     echo_line(widgets, "");
 
-    echo_line(widgets,"[Mon,  5 Apr 2021] +0930");
-    echo_message(widgets, "00:00:00", "mars-alpha", "->", "How is the potato experiment going?");
-    echo_message(widgets, "00:00:00", "local",      "--", "System restart");
 
-    gtk_text_buffer_set_text (targetsTextBuffer, "", -1);
-    gtk_text_buffer_get_end_iter (targetsTextBuffer, &targetsIter);
-    gtk_text_buffer_insert (
-        targetsTextBuffer,
-        &targetsIter,
-        "Name          Address:Port        Receive Action    Transmit Action   RTT(Ping)   ErrorRate  Jitter\n",
-        -1);
-    gtk_text_buffer_insert (
-        targetsTextBuffer,
-        &targetsIter,
-        "----------    ----------------    --------------    ---------------   ----------  --------  -------\n",
-        -1);
-    gtk_text_buffer_insert (
-        targetsTextBuffer,
-        &targetsIter,
-        "local         localhost:8400      echo              send\n",
-        -1);
-    gtk_text_buffer_insert (
-        targetsTextBuffer,
-        &targetsIter,
-        "mars-alpha    mars-alpha:8400     echo              send-and-echo     7m30s(10s)\n",
-        -1);
-    gtk_text_buffer_insert (
-        targetsTextBuffer,
-        &targetsIter,
-        "au            au.gateway:8400     echo              send-and-echo     98ms(10s)\n",
-        -1);
+    echo_line(widgets,"[Mon,  5 Apr 2021] +0930");
+    echo_message(widgets, "--:--:--", "local", "--", "System restart");
 
     gtk_text_buffer_set_text (messageTextBuffer, "", -1);
 
