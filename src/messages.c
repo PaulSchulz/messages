@@ -31,6 +31,14 @@
 #define BUFSIZE 1024
 #define STRSIZE 32
 
+#define DEBUG
+
+#ifdef DEBUG
+#define   D(...) g_printerr(__VA_ARGS__);
+#else
+#define   D(...)
+#endif
+
 //
 typedef struct {
     const gchar   *name;
@@ -74,14 +82,9 @@ echo_line (appWidgets *widgets, gchar *line)
     //GtkTextBuffer *messages;
     GtkTextIter messagesIter;
 
-    // DEBUG: printf("%s\n", line);
-    g_printerr("[DEBUG] Get end iter in messagesTextBuffer\n");
+    D("[DEBUG] echo_line()\n");
     gtk_text_buffer_get_end_iter(GTK_TEXT_BUFFER(widgets->messagesTextBuffer),&messagesIter);
-
-    g_printerr("[DEBUG] Insert text\n");
     gtk_text_buffer_insert (GTK_TEXT_BUFFER(widgets->messagesTextBuffer), &messagesIter, line, -1);
-
-    g_printerr("[DEBUG] Insert newline\n");
     gtk_text_buffer_insert (GTK_TEXT_BUFFER(widgets->messagesTextBuffer), &messagesIter, "\n", -1);
 }
 
@@ -156,7 +159,6 @@ gchar * skn_gio_condition_to_string(GIOCondition condition)
     return (value);
  }
 
-// FIXME - This function was taken from an example and needs to be renamed.
 static gboolean
 receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *widgets)
 {
@@ -177,20 +179,20 @@ receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *wid
     widgets = &widgetData;
 
     // DEBUG
-    g_printerr("[DEBUG] Received UDP packet - Condition: %s\n",
+    D("[DEBUG] Received UDP packet - Condition: %s\n",
                skn_gio_condition_to_string(condition));
 
     if ((condition & G_IO_HUP) || (condition & G_IO_ERR) || (condition & G_IO_NVAL)) {
         /* SHUTDOWN THE MAIN LOOP */
-        g_printerr("[DEBUG] DisplayService::cb_udp_request_handler(error) G_IO_HUP => %s\n",
+        D("[DEBUG] DisplayService::cb_udp_request_handler(error) G_IO_HUP => %s\n",
                   skn_gio_condition_to_string(condition));
         //g_main_loop_quit(pctrl->loop);
         return ( G_SOURCE_REMOVE );
     }
 
     if (condition != G_IO_IN) {
-        g_printerr("[DEBUG] DisplayService::cb_udp_request_handler(error) NOT G_IO_IN => %s\n",
-                   skn_gio_condition_to_string(condition));
+        D("[DEBUG] DisplayService::cb_udp_request_handler(error) NOT G_IO_IN => %s\n",
+          skn_gio_condition_to_string(condition));
         return (G_SOURCE_CONTINUE);
     }
 
@@ -209,19 +211,17 @@ receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *wid
         return (G_SOURCE_CONTINUE);
     }
 
-    g_printerr("[DEBUG] Update clock\n");
+    D("[DEBUG] Update clock\n");
     updateClock(widgets);
 
-    g_printerr("[DEBUG] Get timestamp\n");
+    D("[DEBUG] Get timestamp\n");
     timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
-    //timestamp = "now()";
     target = "mars-alpha";
 
-    g_printerr("[DEBUG] Dispay message.\n");
-    echo_message(&widgetData, timestamp, "->", target, "  ", widgets->packetData);
+    D("[DEBUG] Dispay message target: %s\n", target);
+    echo_message(&widgetData, timestamp, "  ", target, "->", widgets->packetData);
 
-    // DEBUG
-    g_printerr("[DEBUG] Received UDP packet from client! %ld bytes\n", gss_receive);
+    D("[DEBUG] Received UDP packet from client! %ld bytes\n", gss_receive);
     return (G_SOURCE_CONTINUE);
 
 }
@@ -276,8 +276,8 @@ send_message (targetData target, char *buffer)
         fprintf(stderr,"ERROR in sendto");
 
     // DEBUG
-    g_printerr("[DEBUG] Packet sent: %s %s:%d\n",
-               target.name,
+    D("[DEBUG] Packet sent: %s %s:%d\n",
+      target.name,
                target.address,
                target.port);
     return 0;
@@ -386,7 +386,7 @@ main (int    argc,
 
     GError *error = NULL;
 
-    g_print("[DEBUG] main()\n");
+    D("[DEBUG] main()\n");
     gtk_init (0, NULL);
 
     // Settings
@@ -394,13 +394,13 @@ main (int    argc,
 
     portSetting = g_settings_get_value (gsettings, "port");
     gUDPPort = atoi(g_variant_print(portSetting,FALSE));
-    g_print("[DEBUG] - Waiting for UDP packets on port %d (from gSettings)\n", gUDPPort);
+    D("[DEBUG] - Waiting for UDP packets on port %d (from gSettings)\n", gUDPPort);
 
     // DEBUG - The following 'g_variant_get' creates a buffer which will be the
     // source of a memory leak if not released.
     targetSetting = g_settings_get_value (gsettings, "target");
     target.name = g_variant_get_string(targetSetting,NULL);
-    g_print("[DEBUG] - Default message target: %s (from gSettings)\n", target.name);
+    D("[DEBUG] - Default message target: %s (from gSettings)\n", target.name);
 
 // Create networking socket for UDP
     gSock = g_socket_new(G_SOCKET_FAMILY_IPV4,
@@ -416,7 +416,7 @@ main (int    argc,
     anyAddr = g_inet_address_new_any(G_SOCKET_FAMILY_IPV4);
     gsAddr = g_inet_socket_address_new(anyAddr, gUDPPort);
 
-// Bind address to socket
+    // Bind address to socket
     g_socket_bind(gSock, gsAddr, TRUE, &error);
     if (error != NULL) {
         g_error("g_socket_bind() => %s", error->message);
@@ -424,7 +424,7 @@ main (int    argc,
         exit(EXIT_FAILURE);
     }
 
-// Create and add socket to gmain loop for UDP service.
+    // Create and add socket to gmain loop for UDP service.
     gSource = g_socket_create_source (gSock, G_IO_IN, NULL);
     g_source_set_callback (gSource,
                            (GSourceFunc) receive_message_handler,
@@ -435,13 +435,13 @@ main (int    argc,
     widgets->gSourceId = gSourceId = g_source_attach (gSource, NULL);
 
     //
-    g_print("[DEBUG] - Send ping to target\n");
+    D("[DEBUG] - Send ping to target\n");
     send_message (target, "ping");
 
-    g_print("[DEBUG] - Read GTK builder file\n");
+    D("[DEBUG] - Read GTK builder file\n");
     builder = gtk_builder_new_from_file ("../glade/messages.glade");
 
-    g_print("[DEBUG] - Get pointers to GTK Objects\n");
+    D("[DEBUG] - Get pointers to GTK Objects\n");
     window = gtk_builder_get_object (builder , "window");
     widgets->messagesTextView   = GTK_WIDGET(gtk_builder_get_object(builder, "messagesTextView"));
     widgets->messagesTextBuffer = GTK_TEXT_BUFFER(gtk_builder_get_object(builder, "messagesTextBuffer"));
@@ -468,7 +468,7 @@ main (int    argc,
     gtk_text_buffer_set_text (messagesTextBuffer, "", -1);
 
     // Splash
-    g_print("[DEBUG] Display welcome message\n");
+    D("[DEBUG] Display welcome message\n");
     echo_line(widgets, "Welcome to Messages - an Interplanetary Messaging App!");
     echo_line(widgets, "------------------------------------------------------");
     echo_line(widgets, "This program is designed to send and receive messages with");
