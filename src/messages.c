@@ -33,8 +33,8 @@
 
 //
 typedef struct {
-    gchar   name[STRSIZE];
-    gchar   address[STRSIZE];
+    const gchar   *name;
+    gchar   *address;
     gint    port;
 } targetData;
 
@@ -88,14 +88,15 @@ echo_line (appWidgets *widgets, gchar *line)
 void
 echo_message (appWidgets *widgets,
               const gchar *timestamp,
-              char *target,
-              gchar *direction,
+              const gchar *outdir,
+              const gchar *target,
+              const gchar *indir,
               gchar *message)
 {
     gchar text[BUFSIZE];
 
     // TODO: Handle multiple line messages.
-    sprintf(text, "%-8s  %-2s  %-12s  %s", timestamp, direction, target, message);
+    sprintf(text, "%-8s  %-2s %-12s %-2s  %s", timestamp, outdir, target, indir, message);
 
     echo_line(widgets,text);
 }
@@ -124,35 +125,6 @@ updateRTT(gchar *rtt_str, appWidgets *widgets)
 
 //////////////////////////////////////////////////////////////////////////////
 // Low level networking functions
-
-// COMMENT: These are in the style of GIO. Maybe they can be included in the GIO
-// library at a later date, and extend the network support to UDP traffic in a
-// sensible way.
-//
-// See: gnet-udp for alternatives.
-
-static gssize
-g_socket_input_dgram_read (GSocket       *socket,
-                           void          *buffer,
-                           gsize          count,
-                           GCancellable  *cancellable,
-                           GError       **error)
-{
-    return g_socket_receive (socket,
-                             buffer,
-                             count,
-                             cancellable,
-                             error);
-}
-
-// Available on UNIX style OS
-// #ifdef G_OS_UNIX
-static int
-g_socket_input_dgram_get_fd (GSocket *socket)
-{
-  return g_socket_get_fd (socket);
-}
-//#endif
 
 gchar * skn_gio_condition_to_string(GIOCondition condition)
 {
@@ -186,7 +158,7 @@ gchar * skn_gio_condition_to_string(GIOCondition condition)
 
 // FIXME - This function was taken from an example and needs to be renamed.
 static gboolean
-cb_udp_request_handler (GSocket *gSock, GIOCondition condition, appWidgets *widgets)
+receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *widgets)
 {
     GError *error = NULL;
     GSocketAddress *gsRmtAddr = NULL;
@@ -246,7 +218,7 @@ cb_udp_request_handler (GSocket *gSock, GIOCondition condition, appWidgets *widg
     target = "mars-alpha";
 
     g_printerr("[DEBUG] Dispay message.\n");
-    echo_message(&widgetData, timestamp, target, "<-", widgets->packetData);
+    echo_message(&widgetData, timestamp, "->", target, "  ", widgets->packetData);
 
     // DEBUG
     g_printerr("[DEBUG] Received UDP packet from client! %ld bytes\n", gss_receive);
@@ -254,73 +226,6 @@ cb_udp_request_handler (GSocket *gSock, GIOCondition condition, appWidgets *widg
 
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// network functions
-
-// FIXME: This is a hack to get UDP data to be accepted in glib but it doesn't
-// work correctly. Will only receive a single message, then hangs.
-gboolean
-incomingUDP_callback (GIOChannel *source,
-                      GIOCondition condition,
-                      appWidgets *widgets)
-{
-    gchar message[1024];
-    gssize size;
-    const gchar *timestamp;
-    // gchar *target;
-
-    // g_print("Received UDP packet from client!\n");
-
-    // Buffer is not null terminated.
-    g_io_channel_read_chars (source,message,1024,&size,NULL);
-    g_io_channel_flush (source,NULL);
-
-    printf("Get's here\n");
-
-    message[size] = 0; // null terminator
-
-    g_print("Message was: \"%s\"\n", message);
-
-    updateClock(widgets);
-    timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
-    //target = "mars-alpha";
-    echo_message(widgets, timestamp, target.name, "<-", message);
-
-    printf("Get's here2\n");
-
-    return TRUE;
-}
-
-gboolean
-incoming_callback  (GSocketService *service,
-                    GSocketConnection *connection,
-                    GObject *source_object,
-                    appWidgets *widgets)
-{
-    gchar message[1024];
-    gssize size;
-    const gchar *timestamp;
-    gchar *target;
-
-    g_print("Received Connection from client!\n");
-
-    // Buffer is not null terminated.
-    GInputStream * istream = g_io_stream_get_input_stream (G_IO_STREAM(connection));
-    size = g_input_stream_read (istream, message, 1024, NULL, NULL);
-    message[size] = 0; // null terminator
-
-    g_print("Message was: \"%s\"\n", message);
-
-    updateClock(widgets);
-    timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
-    target = "mars-alpha";
-    echo_message(widgets, timestamp, target, "<-", message);
-
-    return FALSE;
-}
-
-// Low level networking code.
-// Open a UDP network socket, send packet, then close socket.
 static int
 send_message (targetData target, char *buffer)
 {
@@ -404,7 +309,7 @@ clickedSend(GtkButton *button,
 
     // FIXME: target is currently a global structure
     send_message(target, text);
-    echo_message(widgets, timestamp, target.name , "->", text);
+    echo_message(widgets, timestamp, "->", target.name , "  ", text);
     gtk_text_buffer_set_text (GTK_TEXT_BUFFER(widgets->messageTextBuffer), "", -1);
 
     gtk_label_set_text(GTK_LABEL(widgets->statusLabel), "Sent");
@@ -491,10 +396,13 @@ main (int    argc,
     gUDPPort = atoi(g_variant_print(portSetting,FALSE));
     g_print("[DEBUG] - Waiting for UDP packets on port %d (from gSettings)\n", gUDPPort);
 
+    // DEBUG - The following 'g_variant_get' creates a buffer which will be the
+    // source of a memory leak if not released.
     targetSetting = g_settings_get_value (gsettings, "target");
-    g_print("[DEBUG] - Default message target: (from gSettings)\n");
+    target.name = g_variant_get_string(targetSetting,NULL);
+    g_print("[DEBUG] - Default message target: %s (from gSettings)\n", target.name);
 
-    // Create networking socket for UDP
+// Create networking socket for UDP
     gSock = g_socket_new(G_SOCKET_FAMILY_IPV4,
                          G_SOCKET_TYPE_DATAGRAM,
                          G_SOCKET_PROTOCOL_UDP,
@@ -508,7 +416,7 @@ main (int    argc,
     anyAddr = g_inet_address_new_any(G_SOCKET_FAMILY_IPV4);
     gsAddr = g_inet_socket_address_new(anyAddr, gUDPPort);
 
-    // Bind address to socket
+// Bind address to socket
     g_socket_bind(gSock, gsAddr, TRUE, &error);
     if (error != NULL) {
         g_error("g_socket_bind() => %s", error->message);
@@ -516,17 +424,18 @@ main (int    argc,
         exit(EXIT_FAILURE);
     }
 
-    // Create and add socket to gmain loop for UDP service.
+// Create and add socket to gmain loop for UDP service.
     gSource = g_socket_create_source (gSock, G_IO_IN, NULL);
     g_source_set_callback (gSource,
-                           (GSourceFunc) cb_udp_request_handler,
+                           (GSourceFunc) receive_message_handler,
                            // its really a GSocketSourceFunc
                            &widgets,
                            NULL);
 
     widgets->gSourceId = gSourceId = g_source_attach (gSource, NULL);
 
-////
+    //
+    g_print("[DEBUG] - Send ping to target\n");
     send_message (target, "ping");
 
     g_print("[DEBUG] - Read GTK builder file\n");
@@ -570,9 +479,8 @@ main (int    argc,
     echo_line(widgets, buf);
     echo_line(widgets, "");
 
-
+    // Add timestamp
     echo_line(widgets,"[Mon,  5 Apr 2021] +0930");
-    echo_message(widgets, "--:--:--", "local", "--", "System restart");
 
     gtk_text_buffer_set_text (messageTextBuffer, "", -1);
 
