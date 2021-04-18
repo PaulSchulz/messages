@@ -4,13 +4,28 @@
 
   <schema path="/org/mawsonlakes/messages/" id="org.mawsonlakes.messages">
 
-    <key name='port' type='i'>
+    <key name="port" type="i">
+      <range min="0" max="65535"/>
       <default>4478</default>
       <summary>Default port for receiving messages</summary>
       <description>
-        By default the application will listen on all network interfaces for UDP
+        By default, Messages will listen on all network interfaces for UDP
         packets arriving on this port.
       </description>
+    </key>
+
+    <key name="target" type="s">
+      <summary>Target for sent messages</summary>
+      <description>
+        The name to use for defining the target to send messages to.
+      </description>
+      <choices>
+        <choice value='earth-alpha'/>
+        <choice value='earth-gw'/>
+        <choice value='moon-alpha'/>
+        <choice value='mars-alpha'/>
+      </choices>
+      <default>'mars-alpha'</default>
     </key>
 
   </schema>

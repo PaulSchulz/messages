@@ -55,16 +55,40 @@ The following line is required in configure.ac
 #+end_src
 Re-run autoregen to update configuration files.
 
+It is possible to extract 'emum' definitions and import them into the gsettings files.
+
 ** Accessing GConfig during development
 There exists an environment variable which can be used to direct Glib to the
 compiled schema at runtime. So, if 'messages' is run when in the build directory
 (./src), use the following
 #+begin_src 
-  GSETTINGS_SCHEMA_DIR=.
+  GSETTINGS_SCHEMA_DIR=. ./messages
 #+end_src
+
+To install a schema onto the system, root privilages are required. To install,
+copy the schema file into the system schema directory and run 
+#+begin_src shell
+  sudo cp org.mawsonlakes.messages.gschema.xml /usr/share/glib-2.0/schemas/
+  sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
+#+end_src
+
+The setting database can then be queried with:
+#+begin_src 
+gsettings  list-keys org.mawsonlakes.messages
+gsettings get org.mawsonlakes.messages port
+#+end_src
+
+There is a GUI tool which can be used to access the settings:
+#+begin_src shell
+  dconf-settings
+#+end_srcdconf-editor
 
 ** TODO Installation Process
 Work in progress. The current program can be run directly from it's build directory.
+- Build software
+  - Compile binary
+- Copy binary to system directory
+- Copy gsetting schema (XML) to system directory and compile system schemas  
 
 ** Software
 - glib-compile-schemas - Used to compile schemas into a binary Gnome format
@@ -73,5 +97,7 @@ Work in progress. The current program can be run directly from it's build direct
 
 ** Resources:
 - Gnome Documentation: https://developer.gnome.org/GSettings/
+- Gnome Developer Docs: https://developer.gnome.org/gio/stable/GSettings.html
 - Dconf Editor Wikipage: https://wiki.gnome.org/Apps/DconfEditor
 - Gnome Blog Post: https://blog.gtk.org/2017/05/01/first-steps-with-gsettings/
+

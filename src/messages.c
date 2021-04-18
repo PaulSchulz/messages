@@ -10,7 +10,7 @@
 
 // glib
 #include <glib.h>
-#include <gio/gio.h>
+#include <gio/gio.h> // Needed for GSettings, ampngst other things
 // #include <gnet.h> // Used for UDP Networking, but couldn't get this to work.
 #include <gio/gnetworking.h> // What is this required for?
 
@@ -43,11 +43,8 @@ typedef struct {
     GtkWidget *messagesTextView;
     GtkTextBuffer *messagesTextBuffer;
 
-    GtkWidget *targetsTextView;
-    GtkTextBuffer *targetsTextBuffer;
-
     GtkWidget *messageTextView;
-    GtkWidget *messageTextBuffer;
+    GtkTextBuffer *messageTextBuffer;
 
     GtkWidget *timestamp;
     GtkWidget *target;
@@ -464,23 +461,40 @@ main (int    argc,
     GtkTextIter iter;
     GtkTextIter targetsIter;
 
-    //    appWidgets *widgets = g_slice_new(appWidgets);
+    // Settings object
+    GSettings *gsettings;
+
+    // appWidgets *widgets = g_slice_new(appWidgets);
     appWidgets *widgets = &widgetData;
 
-    gtk_init (0, NULL);
-
-    //////
-    GError *error = NULL;
-
-    ///// New UDP Code /////
-    guint16 gUDPPort = 4478;
+    // UDP Networking
+    guint16 gUDPPort = 8400; // Sanity check, should never be seen.
     GSocket *gSock;
     GInetAddress *anyAddr;
     GSocketAddress *gsAddr;
     GSource *gSource;
     guint gSourceId;
 
-    // Create networking socket
+    // Settings
+    GVariant *portSetting;
+    GVariant *targetSetting;
+
+    GError *error = NULL;
+
+    g_print("[DEBUG] main()\n");
+    gtk_init (0, NULL);
+
+    // Settings
+    gsettings = g_settings_new("org.mawsonlakes.messages");
+
+    portSetting = g_settings_get_value (gsettings, "port");
+    gUDPPort = atoi(g_variant_print(portSetting,FALSE));
+    g_print("[DEBUG] - Waiting for UDP packets on port %d (from gSettings)\n", gUDPPort);
+
+    targetSetting = g_settings_get_value (gsettings, "target");
+    g_print("[DEBUG] - Default message target: (from gSettings)\n");
+
+    // Create networking socket for UDP
     gSock = g_socket_new(G_SOCKET_FAMILY_IPV4,
                          G_SOCKET_TYPE_DATAGRAM,
                          G_SOCKET_PROTOCOL_UDP,
@@ -512,19 +526,18 @@ main (int    argc,
 
     widgets->gSourceId = gSourceId = g_source_attach (gSource, NULL);
 
-    //  g_socket_service_start (serviceUDP);
-    g_print ("Waiting for UDP packets on port %d\n", gUDPPort);
-
-    ////
+////
     send_message (target, "ping");
 
+    g_print("[DEBUG] - Read GTK builder file\n");
     builder = gtk_builder_new_from_file ("../glade/messages.glade");
-    window = gtk_builder_get_object (builder , "window");
 
+    g_print("[DEBUG] - Get pointers to GTK Objects\n");
+    window = gtk_builder_get_object (builder , "window");
     widgets->messagesTextView   = GTK_WIDGET(gtk_builder_get_object(builder, "messagesTextView"));
     widgets->messagesTextBuffer = GTK_TEXT_BUFFER(gtk_builder_get_object(builder, "messagesTextBuffer"));
     widgets->messageTextView    = GTK_WIDGET(gtk_builder_get_object(builder, "messageTextView"));
-    widgets->messageTextBuffer  = GTK_WIDGET(gtk_builder_get_object(builder, "messageTextBuffer"));
+    widgets->messageTextBuffer  = GTK_TEXT_BUFFER(gtk_builder_get_object(builder, "messageTextBuffer"));
     widgets->timestamp          = GTK_WIDGET(gtk_builder_get_object(builder, "timestamp"));
     widgets->target             = GTK_WIDGET(gtk_builder_get_object(builder, "target"));
     widgets->rtt                = GTK_WIDGET(gtk_builder_get_object(builder, "rtt"));
@@ -546,6 +559,7 @@ main (int    argc,
     gtk_text_buffer_set_text (messagesTextBuffer, "", -1);
 
     // Splash
+    g_print("[DEBUG] Display welcome message\n");
     echo_line(widgets, "Welcome to Messages - an Interplanetary Messaging App!");
     echo_line(widgets, "------------------------------------------------------");
     echo_line(widgets, "This program is designed to send and receive messages with");
