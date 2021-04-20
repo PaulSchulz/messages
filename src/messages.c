@@ -88,6 +88,7 @@ echo_line (appWidgets *widgets, gchar *line)
     gtk_text_buffer_insert (GTK_TEXT_BUFFER(widgets->messagesTextBuffer), &messagesIter, "\n", -1);
 }
 
+// Uses 'echo_line' for basic line output
 void
 echo_message (appWidgets *widgets,
               const gchar *timestamp,
@@ -99,7 +100,7 @@ echo_message (appWidgets *widgets,
     gchar text[BUFSIZE];
 
     // TODO: Handle multiple line messages.
-    sprintf(text, "%-8s  %-2s %-12s %-2s  %s", timestamp, outdir, target, indir, message);
+    g_snprintf(text, BUFSIZE, "%-8s  %-2s %-12s %-2s  %s", timestamp, outdir, target, indir, message);
 
     echo_line(widgets,text);
 }
@@ -266,7 +267,7 @@ send_message (targetData target, char *buffer)
     serveraddr.sin_port = htons(portno);
 
     // Build message
-    sprintf(buf, "%s", buffer);
+    g_snprintf(buf, BUFSIZE, "%s", buffer);
 
     /* Send the packet */
     serverlen = sizeof(serveraddr);
@@ -475,7 +476,9 @@ main (int    argc,
     echo_line(widgets, "plain UDP packets. Send a message from textbox at the bottom..");
     echo_line(widgets, "");
     char buf[80];
-    sprintf(buf, "Listening for messages on all network interfaces on UDP port %d.", gUDPPort);
+    g_snprintf(buf, BUFSIZE,
+               "Listening for messages on all network interfaces on UDP port %d.",
+               gUDPPort);
     echo_line(widgets, buf);
     echo_line(widgets, "");
 
