@@ -27,11 +27,6 @@ Author: Paul Schulz
   <!-- interface-name messages -->
   <!-- interface-description Send and Recieve UDP/IP messages -->
   <!-- interface-authors Paul Schulz -->
-  <object class="GtkImage" id="image1">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-go-forward</property>
-  </object>
   <object class="GtkImage" id="image2">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -273,7 +268,10 @@ Author: Paul Schulz
               <object class="GtkLabel" id="timestamp">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">10:51:00</property>
+                <property name="label" translatable="yes">--:--:-- +0000</property>
+                <attributes>
+                  <attribute name="font-desc" value="FreeMono 10"/>
+                </attributes>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -283,32 +281,28 @@ Author: Paul Schulz
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="peer-button">
-                <property name="label" translatable="yes">Peer</property>
+              <object class="GtkComboBoxText" id="peerBox">
                 <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="image">image1</property>
-                <property name="use_underline">True</property>
-                <property name="image_position">right</property>
-                <property name="always_show_image">True</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkEntry" id="peerEntry">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="text" translatable="yes">mars-alpha</property>
+                <property name="can_focus">False</property>
+                <property name="active">0</property>
+                <property name="has_entry">True</property>
+                <property name="active_id">mars-alpha</property>
+                <items>
+                  <item id="mars-alpha" translatable="yes">mars-alpha</item>
+                  <item id="mars-gw" translatable="yes">mars-gw</item>
+                  <item id="earth-gw" translatable="yes">earth-gw</item>
+                  <item id="earth-alpha" translatable="yes">earth-alpha</item>
+                </items>
+                <child internal-child="entry">
+                  <object class="GtkEntry" id="peerEntry">
+                    <property name="can_focus">False</property>
+                  </object>
+                </child>
               </object>
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="position">2</property>
+                <property name="position">1</property>
               </packing>
             </child>
             <child>
@@ -321,7 +315,7 @@ Author: Paul Schulz
                 <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="padding">12</property>
-                <property name="position">3</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>

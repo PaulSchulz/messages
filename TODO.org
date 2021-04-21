@@ -5,14 +5,18 @@ that have to be completed.
 
 * Messages (Gnome/GTK/Glib)
 
-** TODO Change the name 'Targets' to 'Peers'
-** TODO Allow the peer to receive the message to be selectable.
+** DONE Change the name 'Targets' to 'Peers'
+CLOSED: [2021-04-22 Thu 05:40]
+** DOING Allow the peer to receive the message to be selectable.
 ** TODO Allow the configuration of peer setting presets
 ** TODO Collect peer statistics - round-trip-time
 ** TODO Display
 ** TODO Advanced message protocol
 - file/data encapsulation and transmission
 - separate port and protocol. eg. amp://peer 
+
+** TODO Display a new date message when the day rolls over
+- Do this via a signal from the updateTime function.
 
 * Router 
 

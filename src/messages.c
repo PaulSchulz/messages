@@ -107,14 +107,15 @@ echo_message (appWidgets *widgets,
     echo_line(widgets,text);
 }
 
-void
-updateClock(appWidgets *widgets)
+static gboolean
+updateClock(gpointer data)
 {
+    appWidgets  *widgets = data;
     GDateTime   *time;            // for storing current time and date
     gchar       *time_str;        // current time and date as a string
 
     time     = g_date_time_new_now_local();          // get the current time
-    time_str = g_date_time_format(time, "%H:%M:%S"); // convert current time to string
+    time_str = g_date_time_format(time, "%H:%M:%S %z"); // convert current time to string
 
     gtk_label_set_text(GTK_LABEL(widgets->timestamp), time_str);
 
@@ -214,11 +215,11 @@ receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *wid
         return (G_SOURCE_CONTINUE);
     }
 
-    D("[DEBUG] Update clock\n");
-    updateClock(widgets);
-
+    // FIXME: Get timestamp from system clock
     D("[DEBUG] Get timestamp\n");
     timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
+
+    // FIXME: Get peer from incoming packet data
     peer = "mars-alpha";
 
     D("[DEBUG] Dispay message peer: %s\n", peer);
@@ -292,13 +293,12 @@ clickedSend(GtkButton *button,
             appWidgets *widgets)
 {
     const gchar *timestamp;
-    // gchar *peer;
+    GtkEntry *peerEntry;
+    const gchar *peerName;
 
     GtkTextIter start_iter,end_iter;
     gchar *text;
     GtkTextIter messagesIter;
-
-    updateClock(widgets);
 
     timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
 
@@ -307,8 +307,14 @@ clickedSend(GtkButton *button,
     text = gtk_text_buffer_get_text(GTK_TEXT_BUFFER(widgets->messageTextBuffer), &start_iter, &end_iter, TRUE);
 
     // FIXME: peer is currently a global structure
+    peerEntry = (GtkEntry *)widgets->peer;
+    peerName = gtk_entry_get_text(peerEntry);
+
+    // Send message
+    peer.name = peerName;
     send_message(peer, text);
-    echo_message(widgets, timestamp, "->", peer.name , "  ", text);
+    echo_message(widgets, timestamp, "->", peerName , "  ", text);
+    // Clear buffer for next message
     gtk_text_buffer_set_text (GTK_TEXT_BUFFER(widgets->messageTextBuffer), "", -1);
 
     gtk_label_set_text(GTK_LABEL(widgets->statusLabel), "Sent");
@@ -316,6 +322,7 @@ clickedSend(GtkButton *button,
     updateRTT("7h29m",widgets);
 
 // FIXME: text might be a memory leak
+// FIXME: timestamp might be a memory leak
 }
 
 static void
@@ -467,7 +474,10 @@ main (int    argc,
 
     gtk_text_buffer_set_text (messagesTextBuffer, "", -1);
 
-    // Splash
+    // Setup periodic updates
+    g_timeout_add_seconds (1, updateClock, widgets);
+
+// Splash
     D("[DEBUG] - Display welcome message\n");
     echo_line(widgets, "Welcome to Messages");
     echo_line(widgets," A best effort, unreliable messaging application ");
@@ -484,13 +494,13 @@ main (int    argc,
 
     // Add timestamp
     datetime = g_date_time_new_from_unix_local (g_get_real_time()/1000000);
-    gchar *str = g_date_time_format (datetime, "[%a, %d %b %Y] %H:%M:%S %z");
-    D("[DEBUG] - Current time: %s\n", str);
+    gchar *str = g_date_time_format (datetime, "[%a, %d %b %Y]");
+    D("[DEBUG] - Current date: %s\n", str);
     echo_line(widgets,str);
     g_free(str);
     g_date_time_unref(datetime);
 
-    updateClock(widgets);
+    //updateClock(widgets);
 
     D("[DEBUG] - Send ping to peer\n");
     send_message (peer, "ping");
