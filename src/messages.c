@@ -73,6 +73,8 @@ peerData peer = { .name = "cashew",
 
 appWidgets widgetData;
 
+GDateTime *datetime; // local time
+
 //////////////////////////////////////////////////////////////////////////////
 // Low level UI function
 
@@ -390,6 +392,7 @@ main (int    argc,
     gtk_init (0, NULL);
 
     // Settings
+    D("[DEBUG] - Reading settings from GSettings\n");
     gsettings = g_settings_new("org.mawsonlakes.messages");
 
     portSetting = g_settings_get_value (gsettings, "port");
@@ -400,9 +403,10 @@ main (int    argc,
     // source of a memory leak if not released.
     peerSetting = g_settings_get_value (gsettings, "peer");
     peer.name = g_variant_get_string(peerSetting,NULL);
-    D("[DEBUG] - Default message target: %s (from gSettings)\n", peer.name);
+    D("[DEBUG] - Default message peer: %s (from gSettings)\n", peer.name);
 
-// Create networking socket for UDP
+    // Create networking socket for UDP
+    D("[DEBUG] - Create networking socket for listening for UDP packets\n");
     gSock = g_socket_new(G_SOCKET_FAMILY_IPV4,
                          G_SOCKET_TYPE_DATAGRAM,
                          G_SOCKET_PROTOCOL_UDP,
@@ -413,10 +417,12 @@ main (int    argc,
         exit(EXIT_FAILURE);
     }
 
+    D("[DEBUG] - Create networking address to listen to\n");
     anyAddr = g_inet_address_new_any(G_SOCKET_FAMILY_IPV4);
     gsAddr = g_inet_socket_address_new(anyAddr, gUDPPort);
 
     // Bind address to socket
+    D("[DEBUG] - Bind socket to network address\n");
     g_socket_bind(gSock, gsAddr, TRUE, &error);
     if (error != NULL) {
         g_error("g_socket_bind() => %s", error->message);
@@ -425,6 +431,7 @@ main (int    argc,
     }
 
     // Create and add socket to gmain loop for UDP service.
+    D("[DEBUG] - Add socket to main loop to service received packets\n");
     gSource = g_socket_create_source (gSock, G_IO_IN, NULL);
     g_source_set_callback (gSource,
                            (GSourceFunc) receive_message_handler,
@@ -433,10 +440,6 @@ main (int    argc,
                            NULL);
 
     widgets->gSourceId = gSourceId = g_source_attach (gSource, NULL);
-
-    //
-    D("[DEBUG] - Send ping to peer\n");
-    send_message (peer, "ping");
 
     D("[DEBUG] - Read GTK builder file\n");
     builder = gtk_builder_new_from_file ("../glade/messages.glade");
@@ -483,9 +486,18 @@ main (int    argc,
     echo_line(widgets, "");
 
     // Add timestamp
-    // TODO: Get actual datetime.
-    echo_line(widgets,"[Mon,  5 Apr 2021] +0930");
+    datetime = g_date_time_new_from_unix_local (g_get_real_time()/1000000);
+    gchar *str = g_date_time_format (datetime, "[%a, %d %b %Y] %H:%M:%S %z");
+    D("[DEBUG] Current time: %s\n", str);
+    echo_line(widgets,str);
 
+    g_free(str);
+    g_date_time_unref(datetime);
+
+    D("[DEBUG] - Send ping to peer\n");
+    send_message (peer, "ping");
+
+    D("[DEBUG] - Clear messageTextBuffer\n");
     gtk_text_buffer_set_text (messageTextBuffer, "", -1);
 
     gtk_main ();

@@ -47,8 +47,6 @@ rt_queue_display(GQueue *queue)
     GDateTime *datetime;
 
     //    datetime = g_date_time_new_from_unix_local ();
-
-
     size = g_queue_get_length (queue);
 
     for (i=0; i<size; i++){
