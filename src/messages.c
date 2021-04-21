@@ -113,7 +113,7 @@ updateClock(appWidgets *widgets)
     GDateTime   *time;            // for storing current time and date
     gchar       *time_str;        // current time and date as a string
 
-    time     = g_date_time_new_now_local();                // get the current time
+    time     = g_date_time_new_now_local();          // get the current time
     time_str = g_date_time_format(time, "%H:%M:%S"); // convert current time to string
 
     gtk_label_set_text(GTK_LABEL(widgets->timestamp), time_str);
@@ -245,9 +245,7 @@ send_message (peerData peer, char *buffer)
 
     // Networking peer
     hostname = peer.address;
-    portno = peer.port;
-    // portno = atoi("8400");
-    // sethostname(myhostname,STRSIZE);
+    portno   = peer.port;
 
     // Open Socket for writing
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -269,7 +267,8 @@ send_message (peerData peer, char *buffer)
     serveraddr.sin_port = htons(portno);
 
     // Build message
-    g_snprintf(buf, BUFSIZE, "%s", buffer);
+    n = g_snprintf(buf, BUFSIZE, "%s", buffer);
+    buf[n] = '\0';
 
     /* Send the packet */
     serverlen = sizeof(serveraddr);
@@ -302,8 +301,6 @@ clickedSend(GtkButton *button,
     updateClock(widgets);
 
     timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
-
-    //target = "mars-alpha";
 
     gtk_text_buffer_get_start_iter(GTK_TEXT_BUFFER(widgets->messageTextBuffer), &start_iter);
     gtk_text_buffer_get_end_iter(GTK_TEXT_BUFFER(widgets->messageTextBuffer), &end_iter);
@@ -471,12 +468,12 @@ main (int    argc,
     gtk_text_buffer_set_text (messagesTextBuffer, "", -1);
 
     // Splash
-    D("[DEBUG] Display welcome message\n");
+    D("[DEBUG] - Display welcome message\n");
     echo_line(widgets, "Welcome to Messages");
-    echo_line(widgets," - a best effort, unreliable messaging application ");
+    echo_line(widgets," A best effort, unreliable messaging application ");
     echo_line(widgets, "------------------------------------------------------");
     echo_line(widgets, "This program is designed to send and receive messages with");
-    echo_line(widgets, "plain UDP packets.");
+    echo_line(widgets, "UDP packets.");
     echo_line(widgets, "");
     char buf[80];
     g_snprintf(buf, BUFSIZE,
@@ -488,11 +485,12 @@ main (int    argc,
     // Add timestamp
     datetime = g_date_time_new_from_unix_local (g_get_real_time()/1000000);
     gchar *str = g_date_time_format (datetime, "[%a, %d %b %Y] %H:%M:%S %z");
-    D("[DEBUG] Current time: %s\n", str);
+    D("[DEBUG] - Current time: %s\n", str);
     echo_line(widgets,str);
-
     g_free(str);
     g_date_time_unref(datetime);
+
+    updateClock(widgets);
 
     D("[DEBUG] - Send ping to peer\n");
     send_message (peer, "ping");
