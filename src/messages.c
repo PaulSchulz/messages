@@ -1,9 +1,9 @@
 // messages
-// An application for sending and receiving packet based messages
 
-// Notes:
-// Using example from:
-// - https://skoona.github.io/skn_rpi-display-services/doc/html/cmd_d_s_8c_source.html
+// An application for sending and receiving UDP packet based messages.
+//
+// Author: Paul Schulz <paul@mawsonlakes.org>
+// License; GNU AFFERO GENERAL PUBLIC LICENSE v3, see LICENSE
 
 // Required for networking code with GNU libc. Is not portable to other libc.
 #include <errno.h>
@@ -39,12 +39,12 @@
 #define   D(...)
 #endif
 
-//
+// Peer data
 typedef struct {
-    const gchar   *name;
-    gchar   *address;
-    gint    port;
-} targetData;
+    const gchar *name;
+    gchar       *address;
+    gint         port;
+} peerData;
 
 // Data structure for passing Widget pointers to callbacks
 typedef struct {
@@ -55,7 +55,7 @@ typedef struct {
     GtkTextBuffer *messageTextBuffer;
 
     GtkWidget *timestamp;
-    GtkWidget *target;
+    GtkWidget *peer;
     GtkWidget *rtt;
     GtkWidget *statusIcon;
     GtkWidget *statusLabel;
@@ -66,9 +66,9 @@ typedef struct {
     gchar     packetData[BUFSIZE];
 } appWidgets;
 
-targetData target = { .name = "cashew",
-                      .address = "10.1.1.193",
-                      .port = 4478
+peerData peer = { .name = "cashew",
+                  .address = "10.1.1.193",
+                  .port = 4478
 };
 
 appWidgets widgetData;
@@ -93,14 +93,14 @@ void
 echo_message (appWidgets *widgets,
               const gchar *timestamp,
               const gchar *outdir,
-              const gchar *target,
+              const gchar *peer,
               const gchar *indir,
               gchar *message)
 {
     gchar text[BUFSIZE];
 
     // TODO: Handle multiple line messages.
-    g_snprintf(text, BUFSIZE, "%-8s  %-2s %-12s %-2s  %s", timestamp, outdir, target, indir, message);
+    g_snprintf(text, BUFSIZE, "%-8s  %-2s %-12s %-2s  %s", timestamp, outdir, peer, indir, message);
 
     echo_line(widgets,text);
 }
@@ -173,7 +173,7 @@ receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *wid
     gchar message[1024];
     gssize size;
     const gchar *timestamp;
-    gchar *target;
+    gchar *peer;
 
     // FIXME - The following is a workaround as 'widgets' is not passed properly
     // and I don't know why. Implemented via a global variable 'widgetData'.
@@ -217,10 +217,10 @@ receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *wid
 
     D("[DEBUG] Get timestamp\n");
     timestamp = gtk_label_get_text(GTK_LABEL(widgets->timestamp));
-    target = "mars-alpha";
+    peer = "mars-alpha";
 
-    D("[DEBUG] Dispay message target: %s\n", target);
-    echo_message(&widgetData, timestamp, "  ", target, "->", widgets->packetData);
+    D("[DEBUG] Dispay message peer: %s\n", peer);
+    echo_message(&widgetData, timestamp, "  ", peer, "->", widgets->packetData);
 
     D("[DEBUG] Received UDP packet from client! %ld bytes\n", gss_receive);
     return (G_SOURCE_CONTINUE);
@@ -228,7 +228,7 @@ receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *wid
 }
 
 static int
-send_message (targetData target, char *buffer)
+send_message (peerData peer, char *buffer)
 {
     char   buf[BUFSIZE];
     char   *hostname;
@@ -241,9 +241,9 @@ send_message (targetData target, char *buffer)
 
     char   myhostname[STRSIZE];
 
-    // Networking target
-    hostname = target.address;
-    portno = target.port;
+    // Networking peer
+    hostname = peer.address;
+    portno = peer.port;
     // portno = atoi("8400");
     // sethostname(myhostname,STRSIZE);
 
@@ -278,10 +278,9 @@ send_message (targetData target, char *buffer)
 
     // DEBUG
     D("[DEBUG] Packet sent: %s %s:%d\n",
-      target.name,
-               target.address,
-               target.port);
-    return 0;
+      peer.name,
+      peer.address,
+      peer.port);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -292,7 +291,7 @@ clickedSend(GtkButton *button,
             appWidgets *widgets)
 {
     const gchar *timestamp;
-    // gchar *target;
+    // gchar *peer;
 
     GtkTextIter start_iter,end_iter;
     gchar *text;
@@ -308,9 +307,9 @@ clickedSend(GtkButton *button,
     gtk_text_buffer_get_end_iter(GTK_TEXT_BUFFER(widgets->messageTextBuffer), &end_iter);
     text = gtk_text_buffer_get_text(GTK_TEXT_BUFFER(widgets->messageTextBuffer), &start_iter, &end_iter, TRUE);
 
-    // FIXME: target is currently a global structure
-    send_message(target, text);
-    echo_message(widgets, timestamp, "->", target.name , "  ", text);
+    // FIXME: peer is currently a global structure
+    send_message(peer, text);
+    echo_message(widgets, timestamp, "->", peer.name , "  ", text);
     gtk_text_buffer_set_text (GTK_TEXT_BUFFER(widgets->messageTextBuffer), "", -1);
 
     gtk_label_set_text(GTK_LABEL(widgets->statusLabel), "Sent");
@@ -328,7 +327,7 @@ clickedOver(GtkButton *button,
     clickedSend(button,widgets);
 
     // FIXME: target is currently a global structure
-    send_message(target, "[OVER]\n");
+    send_message(peer, "[OVER]\n");
 }
 
 
@@ -383,7 +382,7 @@ main (int    argc,
 
     // Settings
     GVariant *portSetting;
-    GVariant *targetSetting;
+    GVariant *peerSetting;
 
     GError *error = NULL;
 
@@ -399,9 +398,9 @@ main (int    argc,
 
     // DEBUG - The following 'g_variant_get' creates a buffer which will be the
     // source of a memory leak if not released.
-    targetSetting = g_settings_get_value (gsettings, "target");
-    target.name = g_variant_get_string(targetSetting,NULL);
-    D("[DEBUG] - Default message target: %s (from gSettings)\n", target.name);
+    peerSetting = g_settings_get_value (gsettings, "peer");
+    peer.name = g_variant_get_string(peerSetting,NULL);
+    D("[DEBUG] - Default message target: %s (from gSettings)\n", peer.name);
 
 // Create networking socket for UDP
     gSock = g_socket_new(G_SOCKET_FAMILY_IPV4,
@@ -436,8 +435,8 @@ main (int    argc,
     widgets->gSourceId = gSourceId = g_source_attach (gSource, NULL);
 
     //
-    D("[DEBUG] - Send ping to target\n");
-    send_message (target, "ping");
+    D("[DEBUG] - Send ping to peer\n");
+    send_message (peer, "ping");
 
     D("[DEBUG] - Read GTK builder file\n");
     builder = gtk_builder_new_from_file ("../glade/messages.glade");
@@ -449,7 +448,7 @@ main (int    argc,
     widgets->messageTextView    = GTK_WIDGET(gtk_builder_get_object(builder, "messageTextView"));
     widgets->messageTextBuffer  = GTK_TEXT_BUFFER(gtk_builder_get_object(builder, "messageTextBuffer"));
     widgets->timestamp          = GTK_WIDGET(gtk_builder_get_object(builder, "timestamp"));
-    widgets->target             = GTK_WIDGET(gtk_builder_get_object(builder, "target"));
+    widgets->peer               = GTK_WIDGET(gtk_builder_get_object(builder, "peerEntry"));
     widgets->rtt                = GTK_WIDGET(gtk_builder_get_object(builder, "rtt"));
     widgets->statusIcon         = GTK_WIDGET(gtk_builder_get_object(builder, "statusIcon"));
     widgets->statusLabel        = GTK_WIDGET(gtk_builder_get_object(builder, "statusLabel"));
@@ -470,10 +469,11 @@ main (int    argc,
 
     // Splash
     D("[DEBUG] Display welcome message\n");
-    echo_line(widgets, "Welcome to Messages - an Interplanetary Messaging App!");
+    echo_line(widgets, "Welcome to Messages");
+    echo_line(widgets," - a best effort, unreliable messaging application ");
     echo_line(widgets, "------------------------------------------------------");
     echo_line(widgets, "This program is designed to send and receive messages with");
-    echo_line(widgets, "plain UDP packets. Send a message from textbox at the bottom..");
+    echo_line(widgets, "plain UDP packets.");
     echo_line(widgets, "");
     char buf[80];
     g_snprintf(buf, BUFSIZE,
@@ -483,6 +483,7 @@ main (int    argc,
     echo_line(widgets, "");
 
     // Add timestamp
+    // TODO: Get actual datetime.
     echo_line(widgets,"[Mon,  5 Apr 2021] +0930");
 
     gtk_text_buffer_set_text (messageTextBuffer, "", -1);

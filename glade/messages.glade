@@ -283,8 +283,8 @@ Author: Paul Schulz
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="targe">
-                <property name="label" translatable="yes">Target</property>
+              <object class="GtkButton" id="peer-button">
+                <property name="label" translatable="yes">Peer</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -300,7 +300,7 @@ Author: Paul Schulz
               </packing>
             </child>
             <child>
-              <object class="GtkEntry" id="target">
+              <object class="GtkEntry" id="peerEntry">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="text" translatable="yes">mars-alpha</property>
@@ -466,8 +466,5 @@ Author: Paul Schulz
         </child>
       </object>
     </child>
-  </object>
-  <object class="GtkTextBuffer" id="targetsTextBuffer">
-    <property name="text" translatable="yes">[targets]</property>
   </object>
 </interface>

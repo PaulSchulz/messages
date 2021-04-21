@@ -1,0 +1,23 @@
+* TODOs for Messages Application
+
+See the code for additional TODO comments. The following sections list features
+that have to be completed.
+
+* Messages (Gnome/GTK/Glib)
+
+** TODO Change the name 'Targets' to 'Peers'
+** TODO Allow the peer to receive the message to be selectable.
+** TODO Allow the configuration of peer setting presets
+** TODO Collect peer statistics - round-trip-time
+** TODO Display
+** TODO Advanced message protocol
+- file/data encapsulation and transmission
+- separate port and protocol. eg. amp://peer 
+
+* Router 
+
+** TODO Allow message packets to be received and routed to a queue for processing
+** TODO Add per queue packet delay
+** TODO Display queuing data in real time
+
+y

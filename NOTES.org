@@ -1,22 +1,32 @@
 * Introduction
 
+Messages
+
 This document contains development notes and design documentation. It may
 provide some insight on why a particular path was chosen, or why some particular
 programming was NOT chosen. This is not guaranteed though. The documentation may
 also be out of date so 'reader beware'.
 
+** Development 
+
+Initial code for UDP networking was based on example code from:
+  https://skoona.github.io/skn_rpi-display-services/doc/html/cmd_d_s_8c_source.html
+
 * Testing 
 ** Messaging
-Testing that UDP messages are being sent and received can be done with the netcat (nc) program.
+Testing that UDP messages are being sent and received can be done with the
+netcat (nc) program.
  
 Receiving messages sent to another Linux host on the network can be done with
-the following (-l listen, -u UDP, -k keep alive and listen for more packets)
+the following
 #+begin_src shell
   nc -luk 4478
 #+end_src
+where the options are -l listen, -u UDP, -k keep alive and listen for more
+packets.
 
 Sending messages from another Linux host on the network to the messages client,
-listening on port 4478 can be done with
+listening on port 4478 can be done with (as an example)
 #+begin_src shell
   echo -n "The potatos are growing well" | nc -uN -q 1 10.1.1.83 4478
 #+end_src
@@ -57,7 +67,10 @@ Re-run autoregen to update configuration files.
 
 It is possible to extract 'emum' definitions and import them into the gsettings files.
 
+
+
 ** Accessing GConfig during development
+
 There exists an environment variable which can be used to direct Glib to the
 compiled schema at runtime. So, if 'messages' is run when in the build directory
 (./src), use the following
@@ -100,4 +113,15 @@ Work in progress. The current program can be run directly from it's build direct
 - Gnome Developer Docs: https://developer.gnome.org/gio/stable/GSettings.html
 - Dconf Editor Wikipage: https://wiki.gnome.org/Apps/DconfEditor
 - Gnome Blog Post: https://blog.gtk.org/2017/05/01/first-steps-with-gsettings/
+
+* Build Environment
+** Makefile
+Initially, a regular manually created Makefile has been used to assist with
+development. At some stage this will need to be switched to something more
+advanced.
+
+** TODO Meson
+Meson is a build system equivalent to Make and CMake, which is a contender for a
+revised build system as it appears to be used in other Gnome application.
+
 

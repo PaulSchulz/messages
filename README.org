@@ -8,9 +8,8 @@ Communication is unencrypted and in no way is delivery guaranteed. In order for
 a message to be received, a client needs to be listening. Retransmissions may
 cause messages to be repeated.
 
-This application was written to test how message transmission delays (eg. those
-caused by interplanetary distances) affect message based communication.
-
+This application was written to investigate how message transmission delays (eg.
+those caused by large distances) affect message based communication.
 
 ** Compilation on Ubuntu (and Debian based systems)
 #+begin_src text
@@ -21,6 +20,18 @@ caused by interplanetary distances) affect message based communication.
 #+end_src
 
 ** To Run
+As the application uses GSettings to store some default values, these need to be
+available in order for the software to run.
+
+This can either be from the local cache file or from the system configuration if
+it has been installed.
+
+To run the software with the local settings use:
+#+begin_src text
+  cd ./src
+  make run
+#+end_src
+otherwise, use
 #+begin_src text
   cd ./src
   ./messages

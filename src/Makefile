@@ -1,4 +1,4 @@
-.PHONY: all run clean
+.PHONY: all run install clean
 
 all: gschemas.compiled messages router
 
@@ -14,6 +14,10 @@ router: router.c
 # Helpful targets
 run: gschemas.compiled  messages
 	GSETTINGS_SCHEMA_DIR=. ./messages
+
+install:
+	sudo cp org.mawsonlakes.messages.gschema.xml /usr/share/glib-2.0/schemas/
+	sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
 
 clean:
 	-rm gschemas.compiled

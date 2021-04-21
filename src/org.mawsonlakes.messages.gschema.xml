@@ -14,10 +14,10 @@
       </description>
     </key>
 
-    <key name="target" type="s">
-      <summary>Target for sent messages</summary>
+    <key name="peer" type="s">
+      <summary>Peer to send message</summary>
       <description>
-        The name to use for defining the target to send messages to.
+        The target computer to send messages to.
       </description>
       <choices>
         <choice value='earth-alpha'/>
