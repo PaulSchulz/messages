@@ -9,7 +9,7 @@ messages: messages.c
 	gcc `pkg-config --cflags gtk+-3.0` -o $@ $< `pkg-config --libs gtk+-3.0`
 
 router: router.c
-	gcc `pkg-config --cflags gtk+-3.0` -o $@ $< `pkg-config --libs gtk+-3.0`
+	gcc `pkg-config --cflags gtk+-3.0` -o $@ $< `pkg-config --libs gtk+-3.0` -lncurses
 
 # Helpful targets
 run: gschemas.compiled  messages
