@@ -1,7 +1,8 @@
 // router
 
-// An application to implement store and forward routing of UDP messages,
-// including processing of packets. eg. adding delay.
+// This program implements store and forward routing queues of UDP
+// messages. It will listen on configurd UDP ports and queue the
+// contents of any packets received in queues for further processing.
 
 // Required for networking code with GNU libc. Is not portable to other libc.
 #include <errno.h>
@@ -9,7 +10,10 @@
 // GLib headers
 #include <glib.h>
 #include <gio/gio.h>
-//#include <gmodule.h>
+#include <gmodule.h>
+
+// Gtk
+#include <gtk/gtk.h>
 
 // Text interface
 #include <ncurses.h>
@@ -19,29 +23,35 @@
 #define STRSIZE 32
 
 #define DEBUG
-
 #ifdef DEBUG
 #define   D(...) g_printerr(__VA_ARGS__);
 #else
 #define   D(...)
 #endif
 
+// NCURSES interface
+// This can be hidden during development.
+// TODO: Allow this to be set with a flag at runtime.
+#define NCURSES FALSE
+// #define NCURSES TRUE
+
 // Target data
 typedef struct {
-    gchar * name;
-    gchar * address;
+    gchar* name;
+    gchar* address;
     guint16 port;
 } RtTarget;
 
 // Message data
 typedef struct {
     gint64 timein;
-    gchar *message;
+    gchar* message;
 } RtData;
 
 // Queues - messages are sorted into queues, which may have different delay
 // times.
 typedef struct {
+    gchar    *name;
     RtTarget target;
     guint16  port_in;
     GQueue   *queue;
@@ -55,13 +65,21 @@ typedef struct {
                           // packet) then this value also needs to be set.
 } RtQueue;
 
+// FIXME: No longer a widget data structure. Should be renamed.
 typedef struct {
-    guint     gSourceId;
-    gchar     packetData[BUFSIZE];
+  guint     gSourceId;
+  gchar     packetData[BUFSIZE];
+  RtQueue  *rtqueue;
+  GArray   *queues;
 } appWidgets;
 
 appWidgets widgetData;
 appWidgets *widgets = &widgetData;
+
+gboolean enable_ncurses = NCURSES;
+
+// Pre-declarations
+void rt_queue_display(RtQueue *rtqueue);
 
 //////////////////////////////////////////////////////////////////////////////
 // Utilities
@@ -101,28 +119,27 @@ gchar * skn_gio_condition_to_string(GIOCondition condition)
 // Receive Packets
 
 static gboolean
-rt_receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *widgets)
+rt_queue_message_handler (GSocket *gSock, GIOCondition condition, RtQueue* rtqueue_p)
 {
-    GError *error = NULL;
+    GError         *error = NULL;
     GSocketAddress *gsRmtAddr = NULL;
-    GInetAddress *gsAddr = NULL;
-    gchar * rmtHost = NULL;
-    gchar *stamp = "";
-    gssize gss_receive = 0;
+    GInetAddress   *gsAddr = NULL;
+    gchar          *rmtHost = NULL;
+    gchar          *stamp = "";  
+    gssize         gss_receive = 0;
 
-    gchar message[1024];
-    gssize size;
+    gchar       message[BUFSIZE];
+    gssize      size;
     const gchar *timestamp;
-    gchar *peer;
+    gchar       *peer;
 
-    // FIXME - The following is a workaround as 'widgets' is not passed properly
-    // and I don't know why. Implemented via a global variable 'widgetData'.
-    widgets = &widgetData;
-
-    // DEBUG
-    D("[DEBUG] Received UDP packet - Condition: %s\n",
+    RtData *data;
+    
+    D("[DEBUG] Receivng UDP packet - Condition: %s\n",
       skn_gio_condition_to_string(condition));
+    D("[DEBUG]   on queue %s\n", rtqueue_p->name);
 
+    // FIXME: Is this still required? Can this be fixed
     if ((condition & G_IO_HUP) || (condition & G_IO_ERR) || (condition & G_IO_NVAL)) {
         /* SHUTDOWN THE MAIN LOOP */
         D("[DEBUG] DisplayService::cb_udp_request_handler(error) G_IO_HUP => %s\n",
@@ -140,8 +157,8 @@ rt_receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *
     // If socket times out before reading data any operation will error with 'G_IO_ERROR_TIMED_OUT'.
     gss_receive = g_socket_receive_from (gSock,
                                          &gsRmtAddr,
-                                         widgets->packetData,
-                                         sizeof(widgets->packetData),
+                                         message,
+                                         sizeof(message),
                                          NULL,
                                          &error);
 
@@ -152,14 +169,27 @@ rt_receive_message_handler (GSocket *gSock, GIOCondition condition, appWidgets *
         return (G_SOURCE_CONTINUE);
     }
 
-    // TODO: Put stuff here
-    D("[DEBUG] Received UDP packet from client! %ld bytes\n", gss_receive);
+    // Terminate message string.
+    message[gss_receive] = '\0';
+    
+    D("[DEBUG] Received UDP packet from client - %ld bytes\n", gss_receive);
+    D("[DEBUG] Message: %s\n", message);
+
+    data = g_slice_alloc(sizeof(RtData));
+    data->timein = g_get_real_time();
+    data->message = g_strdup (message);
+    g_queue_push_tail (rtqueue_p->queue, data);
+
+    // DEBUG
+    rt_queue_display(rtqueue_p);
+    
     return (G_SOURCE_CONTINUE);
 }
 
 void
-rt_socket_open (char *address, guint16 port)
+rt_queue_open (RtQueue * rtqueue_p)
 {
+    guint16 port;  
     GSocket *gSock;
     GInetAddress *anyAddr;
     GSocketAddress *gsAddr;
@@ -168,6 +198,15 @@ rt_socket_open (char *address, guint16 port)
 
     GError *error = NULL;
 
+    D("[DEBUG] Open Queue\n");
+    D("[DEBUG]   Details\n");
+    D("[DEBUG]   - port_in:        %d\n", rtqueue_p->port_in);
+    D("[DEBUG]   - target.name:    %s\n", rtqueue_p->target.name);
+    D("[DEBUG]   - target.address: %s\n", rtqueue_p->target.address);
+    D("[DEBUG]   - target.port:    %i\n", rtqueue_p->target.port);
+    
+    port = rtqueue_p->port_in;
+    
     // Create networking socket for UDP
     D("[DEBUG] - Create networking socket for listening for UDP packets\n");
     gSock = g_socket_new(G_SOCKET_FAMILY_IPV4,
@@ -180,8 +219,8 @@ rt_socket_open (char *address, guint16 port)
         exit(EXIT_FAILURE);
     }
 
-    D("[DEBUG] - Create networking address to listen to\n");
     // FIXME: Add ability to select network address to listen on (eg. if address)
+    D("[DEBUG] - Create networking address for reception\n");
     anyAddr = g_inet_address_new_any(G_SOCKET_FAMILY_IPV4);
     gsAddr = g_inet_socket_address_new(anyAddr, port);
 
@@ -194,79 +233,72 @@ rt_socket_open (char *address, guint16 port)
         exit(EXIT_FAILURE);
     }
 
-// Create and add socket to gmain loop for UDP service.
+    // Create and add socket to gmain loop for UDP service.
     D("[DEBUG] - Add socket to main loop to service received packets\n");
     gSource = g_socket_create_source (gSock, G_IO_IN, NULL);
     g_source_set_callback (gSource,
-                           (GSourceFunc) rt_receive_message_handler,
+                           (GSourceFunc) rt_queue_message_handler,
                            // its really a GSocketSourceFunc
-                           &widgets,
+                           rtqueue_p,
                            NULL);
 
-    widgets->gSourceId = gSourceId = g_source_attach (gSource, NULL);
+    D("[DEBUG] - Listening on * %d\n", port);
+    //widgets->gSourceId =
+    gSourceId = g_source_attach (gSource, NULL);
+    D("[DEBUG]\n");
 }
 
 //////////////////////////////////////////////////////////////////////////////
-// Display
-
+// NCurses Display
 void
-rt_queue_display(GQueue *queue)
+rt_ncurses_open()
 {
-    guint size,i;
-    RtData *data;
-
-    GDateTime *datetime;
-
-    //    datetime = g_date_time_new_from_unix_local ();
-    size = g_queue_get_length (queue);
-
-    for (i=0; i<size; i++){
-        data = g_queue_peek_nth (queue,i);
-
-        // g_print("timein:  %8ld  \n", data->timein/1000000);
-        datetime = g_date_time_new_from_unix_local (data->timein/1000000);
-        gchar *str = g_date_time_format (datetime, "%Y/%m/%d %H:%M:%S %z");
-        // g_print("%s | ", str);
-        g_free(str);
-        g_date_time_unref(datetime);
-        // g_print("%s\n", data->message);
-
-    }
+  initscr();
+  raw();
+  keypad(stdscr, TRUE);
+  noecho();
 }
 
 void
-nc_queue_display_header (int y, int x)
+rt_ncurses_close()
 {
-    mvprintw(y,  x,"%s", "PortIn  From          To                   Delay   Msgs  Next");
-    mvprintw(y+1,x,"%s", "------  ------------  ------------------  ------  -----  -------------------------");
+    endwin();
+}
+
+void
+rt_queue_display_header (int y, int x)
+{
+    mvprintw(y,  x,"%s", "Name          PortIn  From          To                   Delay   Msgs  Next");
+    mvprintw(y+1,x,"%s", "------------  ------  ------------  ------------------  ------  -----  -------------------------");
 }
 
 // FIXME: The following breaks if a queue has not data in it.
 void
-nc_queue_display_mv (int y, int x, RtQueue *rtqueue)
+rt_queue_display_mv (int y, int x, RtQueue *rtqueue_p)
 {
-    guint size;
-    RtData *data;
-    GDateTime *datetime;
-    GQueue *queue = rtqueue->queue;
+    guint      size;
+    RtData*    data;
+    GDateTime* datetime;
+    GQueue*    queue = rtqueue_p->queue;
 
-    gchar *dst = "";
-    gchar *str;
+    gchar*     dst = "";
+    gchar*     str;
 
     dst = g_strnfill (TEXTBUF,' ');
     g_snprintf(dst, TEXTBUF, "%s:%d",
-               rtqueue->target.address,
-               rtqueue->target.port);
-    size = g_queue_get_length (queue);
-    data = g_queue_peek_head (queue);
+               rtqueue_p->target.address,
+               rtqueue_p->target.port);
+    //size = g_queue_get_length (queue);
+    //data = g_queue_peek_head (queue);
     datetime = g_date_time_new_from_unix_local (data->timein/1000000);
     str = g_date_time_format (datetime, "%Y/%m/%d %H:%M:%S %z");
 
-    mvprintw(y,x,"%6d  %-12s  %-18s  %6d  %5d  %s",
-             rtqueue->port_in,
-             rtqueue->target.name,
+    mvprintw(y,x,"%-12s  %6d  %-12s  %-18s  %6d  %5d  %s",
+	     rtqueue_p->name,
+             rtqueue_p->port_in,
+             rtqueue_p->target.name,
              dst,
-             rtqueue->delay,
+             rtqueue_p->delay,
              size,
              str
         );
@@ -275,75 +307,111 @@ nc_queue_display_mv (int y, int x, RtQueue *rtqueue)
     g_date_time_unref(datetime);
 }
 
+void
+rt_ncurses_screen(GArray* queues){
+  printw("Queues");
+  rt_queue_display_header (2,0);
+  for(int i; i<queues->len; i++){
+    rt_queue_display_mv (4+i, 0, &g_array_index(queues, RtQueue, i));
+  }
+  refresh();
+};
+//////////////////////////////////////////////////////////////////////////////
+// Text Display
+
+// DEBUG: This is a debugging only function at the moment.
+void
+rt_queue_display(RtQueue *rtqueue)
+{
+    guint size,i;
+    RtData *data;
+
+    GDateTime *datetime;
+
+    size = g_queue_get_length (rtqueue->queue);
+    D("[DEBUG] Queue: %s\n", rtqueue->name);
+    D("[DEBUG] queue length: %d\n", size);
+    
+    for (i=0; i<size; i++){
+        data = g_queue_peek_nth (rtqueue->queue, i);
+	
+        // g_print("timein:  %8ld  \n", data->timein/1000000);
+        datetime = g_date_time_new_from_unix_local (data->timein/1000000);
+        gchar *str = g_date_time_format (datetime, "%Y/%m/%d %H:%M:%S %z");
+        D("[DEBUG]   %s | %s\n", str, data->message);
+        g_free(str);
+        g_date_time_unref(datetime);
+    }
+}
+
+// Global Data
+GArray *queues;     // Array of Queues
+
+//////////////////////////////////////////////////////////////////////////////
 int
 main (int    argc,
       char **argv)
 {
-    RtQueue rtqueue_in, rtqueue_out;
-
+  RtQueue rtqueue;
     RtData *data = NULL;
-
     GQueue *queue;
+
+    // Setup Queues
     queue = g_queue_new();
+    queues = g_array_new (FALSE, FALSE, sizeof(RtQueue));
 
-    rt_socket_open("*", 4478);
+    //widgets->queues = queues;
+    // TODO: Allow the queues to be configured via a config file.
+    rtqueue.name           = "echo-10s";
+    rtqueue.port_in        = 4478;
+    rtqueue.target.name    = "earth-ctl";
+    rtqueue.target.address = "10.1.1.193";
+    rtqueue.target.port    = 4478;
+    rtqueue.queue          = g_queue_new();
+    rtqueue.delay          = 10;
+    g_array_append_val (queues, rtqueue);
 
-    // Test data
-    data = g_slice_alloc(sizeof(RtData));
-    data->timein = g_get_real_time();
-    data->message = g_strdup ("first");
-    g_queue_push_tail (queue, data);
+    rtqueue.name           = "mars-alpha";
+    rtqueue.port_in        = 4479;
+    rtqueue.target.name    = "mars-alpha";
+    rtqueue.target.address = "10.1.1.193";
+    rtqueue.target.port    = 4478;
+    rtqueue.queue          = g_queue_new();
+    rtqueue.delay          = 0;
+    g_array_append_val (queues, rtqueue);
 
-    data = g_slice_alloc(sizeof(RtData));
-    data->timein = g_get_real_time();
-    data->message = g_strdup ("second");
-    g_queue_push_tail (queue, data);
-    // g_print("Messages Queued\n");
+    rtqueue.name           = "earth-alpha";
+    rtqueue.port_in        = 4480;
+    rtqueue.target.name    = "earth-alpha";
+    rtqueue.target.address = "10.1.1.83";
+    rtqueue.target.port    = 4478;
+    rtqueue.queue          = g_queue_new();  
+    rtqueue.delay          = 0;
+    g_array_append_val (queues, rtqueue);
 
-    // g_print("Display Message Queued\n");
-    // rt_queue_display(queue);
+    D("[DEBUG] Open router queue and UDP socket for receiving messages\n");
+    for(int i; i<queues->len;i++){
+      rt_queue_open(&g_array_index(queues, RtQueue, i));
+    }
+    D("[DEBUG] Number of queues: %d\n", queues->len);
 
-    // g_print("Remove first element\n");
-    // data = g_queue_pop_head(queue);
-    // g_free(data);
+    // Setup NCURSES display
+    if (enable_ncurses){
+      rt_ncurses_open();
+    }
 
-    // g_print("Display Message Queued\n");
-    // rt_queue_display(queue);
+    // NCURSES screen
+    if(enable_ncurses){
+      rt_ncurses_screen(queues);
+    }
+    
+    gtk_main ();
 
-    int ch;
-
-    initscr();
-    raw();
-    keypad(stdscr, TRUE);
-    noecho();
-
-    // TODO: Temporary rtesting data. This should go into configuration file.
-    // Messages to mars
-    rtqueue_out.port_in        = 4478;
-    rtqueue_out.target.name    = "mars-alpha";
-    rtqueue_out.target.address = "10.1.1.1";
-    rtqueue_out.target.port    = 4478;
-    rtqueue_out.delay          = 225;
-    rtqueue_out.queue          = queue; // g_queue_new();
-
-    // Messages from mars
-    rtqueue_in.port_in         = 4479;
-    rtqueue_in.target.name     = "earth-alpha";
-    rtqueue_in.target.address  = "10.1.1.2";
-    rtqueue_in.target.port     = 4478;
-    rtqueue_in.delay           = 225;
-    rtqueue_in.queue           = queue; // g_queue_new();
-
-    printw("Queues");
-    nc_queue_display_header (2,0);
-    nc_queue_display_mv (4,0,&rtqueue_out);
-    nc_queue_display_mv (5,0,&rtqueue_in);
-
-    refresh();
-    ch=getch();
-
-    endwin();
-
+    // Cleanup NCURSES display
+    if(enable_ncurses){
+      rt_ncurses_close();
+    }
+    
     // g_print("Free list and it's elements\n");
     // g_slist_free_full(list, g_free);
 
