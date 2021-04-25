@@ -15,6 +15,7 @@ those caused by large distances) affect message based communication.
 #+begin_src text
   sudo apt install build-essential
   sudo apt install libgtk-3-dev
+  sudo apt install  
   cd ./src
   make
 #+end_src
@@ -37,6 +38,15 @@ otherwise, use
   ./messages
 #+end_src
 
+
+** Development
+#+begin_src shell
+  sudo apt install libncurses-dev ncurses-doc
+#+end_src
+*** Useful Utilities
+#+begin_src shell
+  sudo apt install net-tools
+#+end_src
 ** Status
 Not yet feature complete - Work in Progress
 - See: TODO.org
