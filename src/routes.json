@@ -1,0 +1,11 @@
+{
+    "description": "Routing for Interplanetary Regions",
+    "regions":
+    [{"description": "Earth (Testing)",
+      "routes":
+      [["earth-alpha", "10.1.1.83", "4478"],
+       ["earth-gw",    "10.1.1.83", "4479"],
+       ["moon-alpha",  "10.1.1.83", "4480"],
+       ["mars-alpha",  "10.1.1.83", "4481"]]
+     }]
+}

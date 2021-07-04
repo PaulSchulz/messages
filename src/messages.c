@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
 #include <netdb.h>
 
@@ -288,6 +289,28 @@ send_message (peerData peer, char *buffer)
 //////////////////////////////////////////////////////////////////////////////
 // callback functions
 
+// Unused
+static void
+insertMessage(GtkEntry *textEntry,
+              char *string,
+              appWidgets *widgets)
+{
+    D("[DEBUG] Key press: %s\n", string);
+}
+
+gboolean
+keyPressed(GtkEntry *textEntry,
+              GdkEventKey *event,
+              appWidgets *widgets)
+{
+    D("[DEBUG] Key press: %d\n", event->keyval);
+    if (event->keyval == GDK_KEY_space){
+        printf("SPACE KEY PRESSED!");
+        return TRUE;
+    }
+}
+
+
 static void
 clickedSend(GtkButton *button,
             appWidgets *widgets)
@@ -466,9 +489,10 @@ main (int    argc,
     messageTextBuffer  = (GtkTextBuffer*)gtk_builder_get_object (builder, "messageTextBuffer");
 
     // gtk_builder_connect_signals (builder, widgets);
-    g_signal_connect (window,       "destroy", G_CALLBACK (close_window), NULL);
-    g_signal_connect (widgets->send, "clicked", G_CALLBACK (clickedSend),  widgets);
-    g_signal_connect (widgets->over, "clicked", G_CALLBACK (clickedOver),  widgets);
+    g_signal_connect (window,                    "destroy",     G_CALLBACK (close_window), NULL);
+    g_signal_connect (widgets->messageTextBuffer, "key_press_event", G_CALLBACK (keyPressed), widgets);
+    g_signal_connect (widgets->send,              "clicked",     G_CALLBACK (clickedSend),  widgets);
+    g_signal_connect (widgets->over,              "clicked",     G_CALLBACK (clickedOver),  widgets);
 
     gtk_widget_show_all (GTK_WIDGET (window));
 

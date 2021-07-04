@@ -116,9 +116,8 @@ Work in progress. The current program can be run directly from it's build direct
 
 * Build Environment
 ** Makefile
-Initially, a regular manually created Makefile has been used to assist with
-development. At some stage this will need to be switched to something more
-advanced.
+A manually created Makefile has been used to assist with development. At some
+stage this will need to be switched to something more advanced.
 
 ** TODO Meson
 Meson is a build system equivalent to Make and CMake, which is a contender for a
