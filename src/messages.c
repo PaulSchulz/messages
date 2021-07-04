@@ -67,14 +67,22 @@ typedef struct {
     gchar     packetData[BUFSIZE];
 } appWidgets;
 
-peerData peer = { .name = "cashew",
-                  .address = "10.1.1.193",
-                  .port = 4478
-};
-
 appWidgets widgetData;
 
 GDateTime *datetime; // local time
+
+
+peerData host = {.name = "silver",
+    .address = "10.1.1.193",
+    .port    = 4477
+};
+
+peerData peer = { .name = "cashew",
+    .address = "10.1.1.193",
+    .port = 4478
+};
+
+
 
 //////////////////////////////////////////////////////////////////////////////
 // Low level UI function

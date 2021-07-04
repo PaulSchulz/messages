@@ -1,6 +1,6 @@
 .PHONY: all run install clean
 
-all: gschemas.compiled messages router config-parse
+all: gschemas.compiled messages router router-monitor config-parse
 
 gschemas.compiled: org.mawsonlakes.messages.gschema.xml
 	glib-compile-schemas .
@@ -9,6 +9,9 @@ messages: messages.c
 	gcc `pkg-config --cflags gtk+-3.0` -o $@ $< `pkg-config --libs gtk+-3.0`
 
 router: router.c
+	gcc `pkg-config --cflags gtk+-3.0` -o $@ $< `pkg-config --libs gtk+-3.0` -lncurses
+
+router-monitor: router-monitor.c
 	gcc `pkg-config --cflags gtk+-3.0` -o $@ $< `pkg-config --libs gtk+-3.0` -lncurses
 
 # Development and testing targets
@@ -27,4 +30,5 @@ clean:
 	-rm gschemas.compiled
 	-rm messages
 	-rm router
+	-rm router-monitor
 	-rm config-parse

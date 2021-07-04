@@ -1,11 +1,24 @@
 {
-    "description": "Routing for Interplanetary Regions",
+    "description": "Routing for Interplanetary Messages",
     "regions":
-    [{"description": "Earth (Testing)",
+    [{"id": "earth",
+      description": "Earth",
       "routes":
       [["earth-alpha", "10.1.1.83", "4478"],
        ["earth-gw",    "10.1.1.83", "4479"],
        ["moon-alpha",  "10.1.1.83", "4480"],
+       ["moon-gw",     "10.1.1.83", "4480"],
        ["mars-alpha",  "10.1.1.83", "4481"]]
-     }]
+     },
+     {"id": "earth-moon",
+      "description": "Earth-Moon",
+      "routes":
+      [["earth-gw",     "-.-.-.-",  "4478"],
+       ["moon-gw",      "-.-.-.-",  "4479"]]
+     },
+     {"id": "earth-mars-moon",
+       "description": "Earth-Mars-Moon",
+       "routes": []
+     },
+    ]
 }

@@ -38,7 +38,7 @@ main (int argc, char *argv[])
   const char *desc = json_reader_get_string_value (reader);
   json_reader_end_member (reader);
 
-  g_print ("%s\n", desc);
+  g_print ("Description: %s\n", desc);
 
   g_object_unref (parser);
 

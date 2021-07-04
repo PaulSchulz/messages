@@ -15,9 +15,6 @@
 // Gtk
 #include <gtk/gtk.h>
 
-// Text interface
-#include <ncurses.h>
-
 #define BUFSIZE 1024
 #define TEXTBUF 256
 #define STRSIZE 32
@@ -28,12 +25,6 @@
 #else
 #define   D(...)
 #endif
-
-// NCURSES interface
-// This can be hidden during development.
-// TODO: Allow this to be set with a flag at runtime.
-#define NCURSES FALSE
-// #define NCURSES TRUE
 
 // Target data
 typedef struct {
@@ -75,8 +66,6 @@ typedef struct {
 
 appWidgets widgetData;
 appWidgets *widgets = &widgetData;
-
-gboolean enable_ncurses = NCURSES;
 
 // Pre-declarations
 void rt_queue_display(RtQueue *rtqueue);
@@ -125,7 +114,7 @@ rt_queue_message_handler (GSocket *gSock, GIOCondition condition, RtQueue* rtque
     GSocketAddress *gsRmtAddr = NULL;
     GInetAddress   *gsAddr = NULL;
     gchar          *rmtHost = NULL;
-    gchar          *stamp = "";  
+    gchar          *stamp = "";
     gssize         gss_receive = 0;
 
     gchar       message[BUFSIZE];
@@ -134,7 +123,7 @@ rt_queue_message_handler (GSocket *gSock, GIOCondition condition, RtQueue* rtque
     gchar       *peer;
 
     RtData *data;
-    
+
     D("[DEBUG] Receivng UDP packet - Condition: %s\n",
       skn_gio_condition_to_string(condition));
     D("[DEBUG]   on queue %s\n", rtqueue_p->name);
@@ -171,7 +160,7 @@ rt_queue_message_handler (GSocket *gSock, GIOCondition condition, RtQueue* rtque
 
     // Terminate message string.
     message[gss_receive] = '\0';
-    
+
     D("[DEBUG] Received UDP packet from client - %ld bytes\n", gss_receive);
     D("[DEBUG] Message: %s\n", message);
 
@@ -182,14 +171,14 @@ rt_queue_message_handler (GSocket *gSock, GIOCondition condition, RtQueue* rtque
 
     // DEBUG
     rt_queue_display(rtqueue_p);
-    
+
     return (G_SOURCE_CONTINUE);
 }
 
 void
 rt_queue_open (RtQueue * rtqueue_p)
 {
-    guint16 port;  
+    guint16 port;
     GSocket *gSock;
     GInetAddress *anyAddr;
     GSocketAddress *gsAddr;
@@ -204,9 +193,9 @@ rt_queue_open (RtQueue * rtqueue_p)
     D("[DEBUG]   - target.name:    %s\n", rtqueue_p->target.name);
     D("[DEBUG]   - target.address: %s\n", rtqueue_p->target.address);
     D("[DEBUG]   - target.port:    %i\n", rtqueue_p->target.port);
-    
+
     port = rtqueue_p->port_in;
-    
+
     // Create networking socket for UDP
     D("[DEBUG] - Create networking socket for listening for UDP packets\n");
     gSock = g_socket_new(G_SOCKET_FAMILY_IPV4,
@@ -249,74 +238,6 @@ rt_queue_open (RtQueue * rtqueue_p)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-// NCurses Display
-void
-rt_ncurses_open()
-{
-  initscr();
-  raw();
-  keypad(stdscr, TRUE);
-  noecho();
-}
-
-void
-rt_ncurses_close()
-{
-    endwin();
-}
-
-void
-rt_queue_display_header (int y, int x)
-{
-    mvprintw(y,  x,"%s", "Name          PortIn  From          To                   Delay   Msgs  Next");
-    mvprintw(y+1,x,"%s", "------------  ------  ------------  ------------------  ------  -----  -------------------------");
-}
-
-// FIXME: The following breaks if a queue has not data in it.
-void
-rt_queue_display_mv (int y, int x, RtQueue *rtqueue_p)
-{
-    guint      size;
-    RtData*    data;
-    GDateTime* datetime;
-    GQueue*    queue = rtqueue_p->queue;
-
-    gchar*     dst = "";
-    gchar*     str;
-
-    dst = g_strnfill (TEXTBUF,' ');
-    g_snprintf(dst, TEXTBUF, "%s:%d",
-               rtqueue_p->target.address,
-               rtqueue_p->target.port);
-    //size = g_queue_get_length (queue);
-    //data = g_queue_peek_head (queue);
-    datetime = g_date_time_new_from_unix_local (data->timein/1000000);
-    str = g_date_time_format (datetime, "%Y/%m/%d %H:%M:%S %z");
-
-    mvprintw(y,x,"%-12s  %6d  %-12s  %-18s  %6d  %5d  %s",
-	     rtqueue_p->name,
-             rtqueue_p->port_in,
-             rtqueue_p->target.name,
-             dst,
-             rtqueue_p->delay,
-             size,
-             str
-        );
-    g_free(str);
-    g_free(dst);
-    g_date_time_unref(datetime);
-}
-
-void
-rt_ncurses_screen(GArray* queues){
-  printw("Queues");
-  rt_queue_display_header (2,0);
-  for(int i; i<queues->len; i++){
-    rt_queue_display_mv (4+i, 0, &g_array_index(queues, RtQueue, i));
-  }
-  refresh();
-};
-//////////////////////////////////////////////////////////////////////////////
 // Text Display
 
 // DEBUG: This is a debugging only function at the moment.
@@ -331,10 +252,10 @@ rt_queue_display(RtQueue *rtqueue)
     size = g_queue_get_length (rtqueue->queue);
     D("[DEBUG] Queue: %s\n", rtqueue->name);
     D("[DEBUG] queue length: %d\n", size);
-    
+
     for (i=0; i<size; i++){
         data = g_queue_peek_nth (rtqueue->queue, i);
-	
+
         // g_print("timein:  %8ld  \n", data->timein/1000000);
         datetime = g_date_time_new_from_unix_local (data->timein/1000000);
         gchar *str = g_date_time_format (datetime, "%Y/%m/%d %H:%M:%S %z");
@@ -385,7 +306,7 @@ main (int    argc,
     rtqueue.target.name    = "earth-alpha";
     rtqueue.target.address = "10.1.1.83";
     rtqueue.target.port    = 4478;
-    rtqueue.queue          = g_queue_new();  
+    rtqueue.queue          = g_queue_new();
     rtqueue.delay          = 0;
     g_array_append_val (queues, rtqueue);
 
@@ -394,26 +315,9 @@ main (int    argc,
       rt_queue_open(&g_array_index(queues, RtQueue, i));
     }
     D("[DEBUG] Number of queues: %d\n", queues->len);
+    D("[DEBUG] Starting gtk_main\n");
 
-    // Setup NCURSES display
-    if (enable_ncurses){
-      rt_ncurses_open();
-    }
-
-    // NCURSES screen
-    if(enable_ncurses){
-      rt_ncurses_screen(queues);
-    }
-    
     gtk_main ();
-
-    // Cleanup NCURSES display
-    if(enable_ncurses){
-      rt_ncurses_close();
-    }
-    
-    // g_print("Free list and it's elements\n");
-    // g_slist_free_full(list, g_free);
 
     return 0;
 }
