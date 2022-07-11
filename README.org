@@ -1,17 +1,18 @@
-* messages
+messages
 A UDP Messaging Application (P2P)
 
-** Introduction
+* Introduction
 
 'Messages' is a UDP based, Peer-to-peer (P2P) messaging application.
 Communication is unencrypted and in no way is delivery guaranteed. In order for
-a message to be received, a client needs to be listening. Retransmissions may
-cause messages to be repeated.
+a message to be received, a client needs to be listening. Retransmissions and
+multipath transmission will cause messages to be repeated if they
+are all successfully received. 
 
 This application was written to investigate how message transmission delays (eg.
 those caused by large distances) affect message based communication.
 
-** Compilation on Ubuntu (and Debian based systems)
+* Compilation on Ubuntu (and Debian based systems)
 #+begin_src shell
   sudo apt install build-essential
   sudo apt install libgtk-3-dev
@@ -25,7 +26,7 @@ To clean upper
   make clean
 #+end_src
 
-** To Run
+* To Run
 As the application uses GSettings to store some default values, these need to be
 available in order for the software to run.
 
@@ -43,10 +44,8 @@ otherwise, use
   ./messages
 #+end_src
 
-** Configuration
-
-
-** Development
+* Configuration
+* Development
 #+begin_src shell
   sudo apt install libncurses-dev ncurses-doc
 #+end_src
@@ -54,13 +53,13 @@ otherwise, use
 #+begin_src shell
   sudo apt install net-tools
 #+end_src
-** Status
+* Status and Roadmap
 Not yet feature complete - Work in Progress
 - See: TODO.org
 
-** Author
+* Author
 
 Paul Schulz <paul@mawsonlakes.org>
-Copyright 2021
+Copyright 2021-2022
 
 Licence: GNU AFFERO GENERAL PUBLIC LICENSE

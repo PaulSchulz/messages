@@ -1,3 +1,4 @@
+
 // router
 
 // This program implements store and forward routing queues of UDP
@@ -19,7 +20,7 @@
 #define TEXTBUF 256
 #define STRSIZE 32
 
-#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
 #define   D(...) g_printerr(__VA_ARGS__);
 #else
@@ -187,43 +188,43 @@ rt_queue_open (RtQueue * rtqueue_p)
 
     GError *error = NULL;
 
-    D("[DEBUG] Open Queue\n");
-    D("[DEBUG]   Details\n");
-    D("[DEBUG]   - port_in:        %d\n", rtqueue_p->port_in);
-    D("[DEBUG]   - target.name:    %s\n", rtqueue_p->target.name);
-    D("[DEBUG]   - target.address: %s\n", rtqueue_p->target.address);
-    D("[DEBUG]   - target.port:    %i\n", rtqueue_p->target.port);
+    g_print("[QUEUE] Open:%s port_in:%d target:%s:%s:%d\n",
+            rtqueue_p->name,
+            rtqueue_p->port_in,
+            rtqueue_p->target.name,
+            rtqueue_p->target.address,
+            rtqueue_p->target.port);
 
     port = rtqueue_p->port_in;
 
     // Create networking socket for UDP
-    D("[DEBUG] - Create networking socket for listening for UDP packets\n");
+
     gSock = g_socket_new(G_SOCKET_FAMILY_IPV4,
                          G_SOCKET_TYPE_DATAGRAM,
-                         G_SOCKET_PROTOCOL_UDP,
-                         &error);
+                     G_SOCKET_PROTOCOL_UDP,
+                     &error);
     if (error != NULL) {
         g_error("g_socket_new() => %s", error->message);
         g_clear_error(&error);
         exit(EXIT_FAILURE);
     }
 
-    // FIXME: Add ability to select network address to listen on (eg. if address)
-    D("[DEBUG] - Create networking address for reception\n");
-    anyAddr = g_inet_address_new_any(G_SOCKET_FAMILY_IPV4);
-    gsAddr = g_inet_socket_address_new(anyAddr, port);
+// FIXME: Add ability to select network address to listen on (eg. if address)
+D("[DEBUG] - Create networking address for reception\n");
+anyAddr = g_inet_address_new_any(G_SOCKET_FAMILY_IPV4);
+gsAddr = g_inet_socket_address_new(anyAddr, port);
 
-    // Bind address to socket
-    D("[DEBUG] - Bind socket to network address\n");
-    g_socket_bind(gSock, gsAddr, TRUE, &error);
-    if (error != NULL) {
-        g_error("g_socket_bind() => %s", error->message);
-        g_clear_error(&error);
-        exit(EXIT_FAILURE);
-    }
+// Bind address to socket
+D("[DEBUG] - Bind socket to network address\n");
+g_socket_bind(gSock, gsAddr, TRUE, &error);
+if (error != NULL) {
+    g_error("g_socket_bind() => %s", error->message);
+    g_clear_error(&error);
+    exit(EXIT_FAILURE);
+}
 
-    // Create and add socket to gmain loop for UDP service.
-    D("[DEBUG] - Add socket to main loop to service received packets\n");
+// Create and add socket to gmain loop for UDP service.
+D("[DEBUG] - Add socket to main loop to service received packets\n");
     gSource = g_socket_create_source (gSock, G_IO_IN, NULL);
     g_source_set_callback (gSource,
                            (GSourceFunc) rt_queue_message_handler,
@@ -232,9 +233,11 @@ rt_queue_open (RtQueue * rtqueue_p)
                            NULL);
 
     D("[DEBUG] - Listening on * %d\n", port);
-    //widgets->gSourceId =
+
     gSourceId = g_source_attach (gSource, NULL);
-    D("[DEBUG]\n");
+    g_print("[QUEUE] Listening:%s port:%d\n",
+            rtqueue_p->name,
+            port);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -273,7 +276,7 @@ int
 main (int    argc,
       char **argv)
 {
-  RtQueue rtqueue;
+    RtQueue rtqueue;
     RtData *data = NULL;
     GQueue *queue;
 
@@ -284,9 +287,9 @@ main (int    argc,
     //widgets->queues = queues;
     // TODO: Allow the queues to be configured via a config file.
     rtqueue.name           = "echo-10s";
-    rtqueue.port_in        = 4478;
-    rtqueue.target.name    = "earth-ctl";
-    rtqueue.target.address = "10.1.1.193";
+    rtqueue.port_in        = 4479;
+    rtqueue.target.name    = "earth-echo";
+    rtqueue.target.address = "10.1.1.83";
     rtqueue.target.port    = 4478;
     rtqueue.queue          = g_queue_new();
     rtqueue.delay          = 10;
@@ -311,10 +314,12 @@ main (int    argc,
     g_array_append_val (queues, rtqueue);
 
     D("[DEBUG] Open router queue and UDP socket for receiving messages\n");
-    for(int i; i<queues->len;i++){
-      rt_queue_open(&g_array_index(queues, RtQueue, i));
-    }
     D("[DEBUG] Number of queues: %d\n", queues->len);
+    g_print("Here!\n");
+    for(int i=0; i<queues->len; i++){
+        rt_queue_open(&g_array_index(queues, RtQueue, i));
+    }
+
     D("[DEBUG] Starting gtk_main\n");
 
     gtk_main ();

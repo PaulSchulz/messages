@@ -1,3 +1,5 @@
+Development Notes
+
 * Introduction
 
 Messages
@@ -50,7 +52,7 @@ Once compiled the settings can be viewed with a command like:
   gsettings --schemadir . list-keys org.mawsonlakes.messages
 #+end_src
 
-** TODO Autotools
+* TODO Autotools
 
 It is possible for the installation details can be maintained with Autotools.
 Put the following in Makefile.in
@@ -69,7 +71,7 @@ It is possible to extract 'emum' definitions and import them into the gsettings 
 
 
 
-** Accessing GConfig during development
+* Accessing GConfig during development
 
 There exists an environment variable which can be used to direct Glib to the
 compiled schema at runtime. So, if 'messages' is run when in the build directory
@@ -96,19 +98,19 @@ There is a GUI tool which can be used to access the settings:
   dconf-settings
 #+end_srcdconf-editor
 
-** TODO Installation Process
+* TODO Installation Process
 Work in progress. The current program can be run directly from it's build directory.
 - Build software
   - Compile binary
 - Copy binary to system directory
 - Copy gsetting schema (XML) to system directory and compile system schemas  
 
-** Software
+* Software
 - glib-compile-schemas - Used to compile schemas into a binary Gnome format
 - dconf-editor - Graphical tool for editing settings once installed
 - gsettings - Manipulate 'gschemas.compiled' file
 
-** Resources:
+* Resources:
 - Gnome Documentation: https://developer.gnome.org/GSettings/
 - Gnome Developer Docs: https://developer.gnome.org/gio/stable/GSettings.html
 - Dconf Editor Wikipage: https://wiki.gnome.org/Apps/DconfEditor
@@ -124,3 +126,37 @@ Meson is a build system equivalent to Make and CMake, which is a contender for a
 revised build system as it appears to be used in other Gnome application.
 
 
+* Miscellaneous TODOs
+
+See the code for additional TODO comments. The following sections list features
+that have to be completed.
+
+** General Development
+*** TODO Port to GTK 4
+
+** Messages (Gnome/GTK/Glib)
+
+*** DONE Change the name 'Targets' to 'Peers'
+CLOSED: [2021-04-22 Thu 05:40]
+*** DOING Allow the peer to  be sent the message to be selectable.
+*** TODO Allow the configuration of peer setting presets
+*** TODO Collect peer statistics - round-trip-time
+*** TODO Display
+*** TODO Advanced message protocol
+- file/data encapsulation and transmission
+- separate port and protocol. eg. amp://peer 
+
+*** TODO Display a new date message when the day rolls over
+- Do this via a signal from the updateTime function.
+
+*** TODO Plugable module message handling supported
+- Allow different message types to be handles by including additonal plugins
+  and/or modules.
+
+eg.
+- encryption (support for different encryption types)
+- reliable file transmission (check sum and retransmission)
+- forward error correction handling
+- automatic link parameter negotiation
+
+** Router 

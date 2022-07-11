@@ -28,6 +28,9 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+// Modules
+#include <gmodule.h>
+
 // Maximum message size
 #define BUFSIZE 1024
 #define STRSIZE 32
@@ -71,14 +74,14 @@ appWidgets widgetData;
 
 GDateTime *datetime; // local time
 
-
+// This data should be coming from 'gconfig'
 peerData host = {.name = "silver",
-    .address = "10.1.1.193",
-    .port    = 4477
+    .address = "10.1.1.83",
+    .port    = 4479
 };
 
-peerData peer = { .name = "cashew",
-    .address = "10.1.1.193",
+peerData peer = { .name = "gateway",
+    .address = "10.1.1.83",
     .port = 4478
 };
 
@@ -436,12 +439,12 @@ main (int    argc,
 
     // DEBUG - The following 'g_variant_get' creates a buffer which will be the
     // source of a memory leak if not released.
-    peerSetting = g_settings_get_value (gsettings, "peer");
-    peer.name = g_variant_get_string(peerSetting,NULL);
-    D("[DEBUG] - Default message peer: %s (from gSettings)\n", peer.name);
+    // peerSetting = g_settings_get_value (gsettings, "peer");
+    // peer.name = g_variant_get_string(peerSetting,NULL);
+    // D("[DEBUG] - Default message peer: %s (from gSettings)\n", peer.name);
 
     // Create networking socket for UDP
-    D("[DEBUG] - Create networking socket for listening for UDP packets\n");
+    D("[DEBUG] - Create networking socket for listening for IPv4 UDP packets.\n");
     gSock = g_socket_new(G_SOCKET_FAMILY_IPV4,
                          G_SOCKET_TYPE_DATAGRAM,
                          G_SOCKET_PROTOCOL_UDP,
@@ -452,12 +455,12 @@ main (int    argc,
         exit(EXIT_FAILURE);
     }
 
-    D("[DEBUG] - Create networking address to listen to\n");
+    D("[DEBUG] - Create networking address (any) for listening on IPv4.\n");
     anyAddr = g_inet_address_new_any(G_SOCKET_FAMILY_IPV4);
     gsAddr = g_inet_socket_address_new(anyAddr, gUDPPort);
 
     // Bind address to socket
-    D("[DEBUG] - Bind socket to network address\n");
+    D("[DEBUG] - Bind socket to network address.\n");
     g_socket_bind(gSock, gsAddr, TRUE, &error);
     if (error != NULL) {
         g_error("g_socket_bind() => %s", error->message);
@@ -466,7 +469,7 @@ main (int    argc,
     }
 
     // Create and add socket to gmain loop for UDP service.
-    D("[DEBUG] - Add socket to main loop to service received packets\n");
+    D("[DEBUG] - Add socket to main loop to service received packets.\n");
     gSource = g_socket_create_source (gSock, G_IO_IN, NULL);
     g_source_set_callback (gSource,
                            (GSourceFunc) receive_message_handler,
@@ -476,7 +479,8 @@ main (int    argc,
 
     widgets->gSourceId = gSourceId = g_source_attach (gSource, NULL);
 
-    D("[DEBUG] - Read GTK builder file\n");
+    D("[DEBUG] - Create GUI Interface.\n");
+    D("[DEBUG] - Read GTK builder file (../glade/messages.glade).\n");
     builder = gtk_builder_new_from_file ("../glade/messages.glade");
 
     D("[DEBUG] - Get pointers to GTK Objects\n");
@@ -509,14 +513,10 @@ main (int    argc,
     // Setup periodic updates
     g_timeout_add_seconds (1, updateClock, widgets);
 
-// Splash
+    // Splash
     D("[DEBUG] - Display welcome message\n");
-    echo_line(widgets, "Welcome to Messages");
-    echo_line(widgets," A best effort, unreliable messaging application ");
-    echo_line(widgets, "------------------------------------------------------");
-    echo_line(widgets, "This program is designed to send and receive messages with");
-    echo_line(widgets, "UDP packets.");
-    echo_line(widgets, "");
+    echo_line(widgets, "Starting...");
+
     char buf[80];
     g_snprintf(buf, BUFSIZE,
                "Listening for messages on all network interfaces on UDP port %d.",
@@ -534,8 +534,8 @@ main (int    argc,
 
     //updateClock(widgets);
 
-    D("[DEBUG] - Send ping to peer\n");
-    send_message (peer, "ping");
+    // D("[DEBUG] - Send ping to peer\n");
+    // send_message (peer, "ping");
 
     D("[DEBUG] - Clear messageTextBuffer\n");
     gtk_text_buffer_set_text (messageTextBuffer, "", -1);
