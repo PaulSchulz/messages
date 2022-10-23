@@ -1,10 +1,9 @@
-messages
-A UDP Messaging Application (P2P)
+#+TITLE: messages - A UDP Messaging Application (P2P)
 
 * Introduction
 
 'Messages' is a UDP based, Peer-to-peer (P2P) messaging application.
-Communication is unencrypted and in no way is delivery guaranteed. In order for
+Communication is unencrypted and delivery is in no way guaranteed. In order for
 a message to be received, a client needs to be listening. Retransmissions and
 multipath transmission will cause messages to be repeated if they
 are all successfully received. 
@@ -21,7 +20,7 @@ those caused by large distances) affect message based communication.
   make
 #+end_src
 
-To clean upper
+To remove intermediate build artifacts
 #+begin_src shell
   make clean
 #+end_src

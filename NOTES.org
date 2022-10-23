@@ -1,8 +1,6 @@
-Development Notes
+#+TITLE: Messages: Development Notes
 
 * Introduction
-
-Messages
 
 This document contains development notes and design documentation. It may
 provide some insight on why a particular path was chosen, or why some particular
@@ -69,8 +67,6 @@ Re-run autoregen to update configuration files.
 
 It is possible to extract 'emum' definitions and import them into the gsettings files.
 
-
-
 * Accessing GConfig during development
 
 There exists an environment variable which can be used to direct Glib to the
@@ -125,7 +121,6 @@ stage this will need to be switched to something more advanced.
 Meson is a build system equivalent to Make and CMake, which is a contender for a
 revised build system as it appears to be used in other Gnome application.
 
-
 * Miscellaneous TODOs
 
 See the code for additional TODO comments. The following sections list features
@@ -159,4 +154,42 @@ eg.
 - forward error correction handling
 - automatic link parameter negotiation
 
-** Router 
+* Router - Application
+Looking to create a 'standalone' UDP routing program, which can interagate,
+process and re-transmit packages.
+
+Original queue setup:
+#+begin_src
+    //widgets->queues = queues;
+    // TODO: Allow the queues to be configured via a config file.
+    rtqueue.name           = "echo-10s";
+    rtqueue.port_in        = 4479;
+    rtqueue.target.name    = "earth-echo";
+    rtqueue.target.address = "10.1.1.83";
+    rtqueue.target.port    = 4478;
+    rtqueue.queue          = g_queue_new();
+    rtqueue.delay          = 10;
+    g_array_append_val (queues, rtqueue);
+
+    rtqueue.name           = "mars-alpha";
+    rtqueue.port_in        = 4479;
+    rtqueue.target.name    = "mars-alpha";
+    rtqueue.target.address = "10.1.1.193";
+    rtqueue.target.port    = 4478;
+    rtqueue.queue          = g_queue_new();
+    rtqueue.delay          = 0;
+    g_array_append_val (queues, rtqueue);
+
+    rtqueue.name           = "earth-alpha";
+    rtqueue.port_in        = 4480;
+    rtqueue.target.name    = "earth-alpha";
+    rtqueue.target.address = "10.1.1.83";
+    rtqueue.target.port    = 4478;
+    rtqueue.queue          = g_queue_new();
+    rtqueue.delay          = 0;
+    g_array_append_val (queues, rtqueue);
+#+end_src
+
+For a minimum setup, 'router' should listen and accept UDP packets from the
+network and log them to the console.
+
